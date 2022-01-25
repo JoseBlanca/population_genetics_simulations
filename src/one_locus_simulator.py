@@ -2,54 +2,9 @@ from typing import Callable, Union, Iterable
 import random
 import math
 from array import array
+from collections import namedtuple
 
 import numpy
-
-# q = initial_freq
-# h = dominance
-# s = fitness
-def _fitfreq(q, h, s):
-    p = 1 - q
-    return (q ** (2 * (1 + s)) + (p * q * (1 + h * s))) / (
-        1 + s * q * ((2 * h * p) + q)
-    )
-
-
-def simulate_old(
-    initial_pop_size,
-    initial_freq,
-    h_dominance,
-    s_fitness,
-    num_generations,
-    demographic_events,
-    random_seed=42,
-):
-
-    demographic_events = {
-        event["num_generation"]: event["pop_size"] for event in demographic_events
-    }
-
-    numpy.random.seed(random_seed)
-
-    freqs_along_generations = [initial_freq]
-    freq_prev_generation = initial_freq
-    pop_size = initial_pop_size
-    for num_generation in range(2, num_generations + 1):
-        if num_generation in demographic_events:
-            pop_size = demographic_events[num_generation]
-
-        num_random_observations = 1
-        size = pop_size
-        success_prob = _fitfreq(freq_prev_generation, h_dominance, s_fitness)
-        alleles = numpy.random.binomial(
-            n=num_random_observations, p=success_prob, size=size
-        )
-        freq_in_this_generation = numpy.sum(alleles) / pop_size
-
-        freqs_along_generations.append(freq_in_this_generation)
-        freq_prev_generation = freq_in_this_generation
-
-    return freqs_along_generations
 
 
 class GenotypicFreqs:
