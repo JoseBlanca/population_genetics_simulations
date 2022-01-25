@@ -32,15 +32,24 @@ class AllelicFreqs:
             raise ValueError("Allelic freqs should sum 1")
 
 
-class Fitness:
-    def __init__(self, w11, w12, w22):
-        self.w11 = w11
-        self.w12 = w12
-        self.w22 = w22
+Fitness = namedtuple("Fitness", ("w11", "w12", "w22"))
+
+MutRates = namedtuple("MutRates", ("A2a", "a2A"))
 
 
 def calc_allelic_freq(genotypic_freqs):
     return genotypic_freqs.AA + genotypic_freqs.Aa * 0.5
+
+
+def _calc_w_avg(genotypic_freqs, fitness):
+    if fitness is None:
+        raise ValueError("fitness is None")
+    w_avg = (
+        genotypic_freqs.AA * fitness.w11
+        + genotypic_freqs.Aa * fitness.w12
+        + genotypic_freqs.aa * fitness.w22
+    )
+    return w_avg
 
 
 class Population:
@@ -50,6 +59,7 @@ class Population:
         size: int,
         genotypic_freqs: GenotypicFreqs,
         fitness: Union[Fitness, None] = None,
+        mut_rates: Union[MutRates, None] = None,
         selfing_coeff: float = 0,
     ):
         self.id = id
@@ -57,7 +67,14 @@ class Population:
         self.genotypic_freqs = genotypic_freqs
         self.selfing_coeff = selfing_coeff
 
+        if fitness is not None:
+            w_avg = _calc_w_avg(genotypic_freqs, fitness)
+            if math.isclose(w_avg, 0):
+                msg = "fitness is 0 because the remaining genotypes have a zero fitness, population would die"
+                raise ValueError(msg)
         self.fitness = fitness
+
+        self.mut_rates = mut_rates
 
     @property
     def allelic_freqs(self):
@@ -74,21 +91,45 @@ class Population:
             return "Aa"
 
     def evolve(self):
-        genotipic_freqs = self.genotypic_freqs
-
-        fitness = self.fitness
-        w11 = fitness.w11
-        w12 = fitness.w12
-        w22 = fitness.w22
-        w_avg = (
-            genotipic_freqs.AA * w11
-            + genotipic_freqs.Aa * w12
-            + genotipic_freqs.aa * w22
-        )
+        genotypic_freqs = self.genotypic_freqs
 
         # selection
-        freq_AA = genotipic_freqs.AA * w11 / w_avg
-        freq_Aa = genotipic_freqs.Aa * w12 / w_avg
+        fitness = self.fitness
+        if fitness is not None:
+            w_avg = _calc_w_avg(genotypic_freqs, fitness)
+            if math.isclose(w_avg, 0):
+                msg = "fitness is 0 because the remaining genotypes have a zero fitness, population would die"
+                raise RuntimeError(msg)
+
+            freq_AA = genotypic_freqs.AA * fitness.w11 / w_avg
+            freq_Aa = genotypic_freqs.Aa * fitness.w12 / w_avg
+        else:
+            freq_AA = genotypic_freqs.AA
+            freq_Aa = genotypic_freqs.Aa
+
+        # mutation
+        if self.mut_rates:
+            mu = self.mut_rates.A2a
+            mu2 = mu ** 2
+            nu = self.mut_rates.a2A
+            nu2 = nu ** 2
+            AA0 = freq_AA
+            Aa0 = freq_Aa
+            aa0 = 1 - freq_AA - freq_Aa
+
+            new_aa = AA0 * mu2 + Aa0 * mu
+            new_AA = aa0 * nu2 + Aa0 * nu
+            new_Aa = AA0 * mu + aa0 * nu
+            AA_removed = AA0 * mu2 + AA0 * mu
+            aa_removed = aa0 * nu2 + aa0 * nu
+            Aa_removed = Aa0 * mu + Aa0 * nu
+
+            AA1 = AA0 + new_AA - AA_removed
+            Aa1 = Aa0 + new_Aa - Aa_removed
+            aa1 = aa0 + new_aa - aa_removed
+            assert math.isclose(AA1 + Aa1 + aa1, 1)
+            freq_AA = AA1
+            freq_Aa = Aa1
 
         # drift
         selfing_coeff = self.selfing_coeff
@@ -182,7 +223,6 @@ class PopSizeLogger(_PerPopLogger):
 
 
 # TODO
-# mutation
 # admixture
 # migration
 
@@ -190,9 +230,10 @@ if __name__ == "__main__":
 
     pop1 = Population(
         id="pop1",
-        size=10,
-        genotypic_freqs=GenotypicFreqs(0.5, 0, 0.5),
-        fitness=Fitness(w11=1, w12=1, w22=1),
+        size=100,
+        genotypic_freqs=GenotypicFreqs(1, 0, 0),
+        fitness=Fitness(w11=0.1, w12=0.5, w22=1),
+        mut_rates=MutRates(a2A=0, A2a=0.1),
     )
     pop_size_change = {
         "type": "size_change",
@@ -205,7 +246,7 @@ if __name__ == "__main__":
     pop_size_logger = PopSizeLogger()
     simulate(
         pops=[pop1],
-        num_generations=5,
+        num_generations=10,
         demographic_events=demographic_events,
         random_seed=42,
         loggers=[allelic_freqs_logger, pop_size_logger],
