@@ -6,6 +6,7 @@ from array import array
 from collections import namedtuple
 
 import numpy
+import pandas
 
 import matplotlib.pyplot as plt
 
@@ -43,6 +44,10 @@ class GenotypicFreqs:
         if not math.isclose(freq_aa + freq_AA + freq_Aa, 1):
             raise ValueError("Genotypic freqs should sum 1")
         self.aa = freq_aa
+
+    @property
+    def freqs(self):
+        return (self.AA, self.Aa, self.aa)
 
 
 class AllelicFreqs:
@@ -227,9 +232,9 @@ def simulate(
         demographic_events = []
 
     for logger in loggers:
-        logger(pops)
+        logger(pops, num_generation=1)
 
-    for num_generation in range(1, num_generations + 1):
+    for num_generation in range(2, num_generations + 1):
 
         for event in demographic_events:
             event_num_generation = event.get("num_generation")
@@ -246,22 +251,31 @@ def simulate(
             pop.evolve_to_next_generation()
 
         for logger in loggers:
-            logger(pops)
+            logger(pops, num_generation)
 
 
 class _PerPopLogger:
     def __init__(self):
-        self.values_per_generation = None
+        self._values_per_generation = None
+        self._generations = array("L")
 
-    def __call__(self, pops: Iterable[Population]):
-        if self.values_per_generation is None:
+    def __call__(self, pops: Iterable[Population], num_generation: int):
+        self._generations.append(num_generation)
+
+        if self._values_per_generation is None:
             values = {pop.id: array("f") for pop in pops}
-            self.values_per_generation = values
+            self._values_per_generation = values
         else:
-            values = self.values_per_generation
+            values = self._values_per_generation
 
         for pop in pops:
             values[pop.id].append(self._calc_value_for_pop(pop))
+
+    @property
+    def values_per_generation(self):
+        values = self._values_per_generation
+        values = pandas.DataFrame(values, index=self._generations)
+        return values
 
 
 class AllelicFreqLogger(_PerPopLogger):
@@ -277,44 +291,59 @@ class PopSizeLogger(_PerPopLogger):
         return size
 
 
+GENOTYPIC_FREQS_NAMES = ["freqs_AA", "freqs_Aa", "freqs_aa"]
+
+
 class GenotypicFreqsLogger:
     def __init__(self):
-        self.values_per_generation = None
+        self._values_per_generation = None
+        self._generations = array("L")
 
-    def __call__(self, pops: Iterable[Population]):
-        if self.values_per_generation is None:
+    def __call__(self, pops: Iterable[Population], num_generation: int):
+        self._generations.append(num_generation)
+
+        if self._values_per_generation is None:
             values = {}
-            for pop in pops:
-                values[pop.id] = {
-                    "freqs_AA": array("f"),
-                    "freqs_Aa": array("f"),
-                    "freqs_aa": array("f"),
-                }
-            self.values_per_generation = values
+            for genotypic_freq_name in GENOTYPIC_FREQS_NAMES:
+                values[genotypic_freq_name] = {}
+                for pop in pops:
+                    values[genotypic_freq_name][pop.id] = array("f")
+            self._values_per_generation = values
         else:
-            values = self.values_per_generation
+            values = self._values_per_generation
 
         for pop in pops:
-            genotypic_freqs = pop.genotypic_freqs
-            values[pop.id]["freqs_AA"].append(genotypic_freqs.AA)
-            values[pop.id]["freqs_Aa"].append(genotypic_freqs.Aa)
-            values[pop.id]["freqs_aa"].append(genotypic_freqs.aa)
+            for genotypic_freq_name, value in zip(
+                GENOTYPIC_FREQS_NAMES, pop.genotypic_freqs.freqs
+            ):
+                values[genotypic_freq_name][pop.id].append(value)
+
+    @property
+    def values_per_generation(self):
+        values = self._values_per_generation
+        dframes = {}
+        for genotypic_freq_name, freqs in values.items():
+            dframes[genotypic_freq_name] = pandas.DataFrame(
+                freqs, index=self._generations
+            )
+        return dframes
 
 
-def plot_freqs(plot_path, allelic_freqs_logger, genotypic_freqs_logger):
+def plot_freqs(plot_path, allelic_freqs_logger, genotypic_freqs_logger, pop_id):
     figure, axess = plt.subplots(nrows=2, sharex=True)
-    allelic_freq = numpy.array(allelic_freqs_logger.values_per_generation["pop1"])
-    generations = numpy.arange(1, allelic_freq.size + 1)
+    allelic_freq = allelic_freqs_logger.values_per_generation[pop_id]
 
     allelic_freq_axes = axess[0]
-    allelic_freq_axes.plot(generations, allelic_freq)
+    allelic_freq_axes.plot(allelic_freq.index, allelic_freq)
     allelic_freq_axes.set_ylabel("allelic freq A")
 
     genotypic_freq_axes = axess[1]
-    genotypic_freqs = genotypic_freqs_logger.values_per_generation["pop1"]
+    genotypic_freqs = genotypic_freqs_logger.values_per_generation
     for genotypic_freq_name, this_genotypic_freqs in genotypic_freqs.items():
         genotypic_freq_axes.plot(
-            generations, this_genotypic_freqs, label=genotypic_freq_name
+            this_genotypic_freqs[pop_id].index,
+            this_genotypic_freqs[pop_id],
+            label=genotypic_freq_name,
         )
     genotypic_freq_axes.legend()
 
@@ -331,8 +360,17 @@ if __name__ == "__main__":
         id="pop1",
         # size=100,
         size=INF,
-        genotypic_freqs=GenotypicFreqs(1, 0, 0),
+        genotypic_freqs=GenotypicFreqs(0.5, 0, 0.5),
         fitness=Fitness(w11=0.1, w12=0.1, w22=1),
+        mut_rates=MutRates(a2A=0.01, A2a=0.01),
+        selfing_coeff=0,
+    )
+    pop2 = Population(
+        id="pop2",
+        # size=100,
+        size=INF,
+        genotypic_freqs=GenotypicFreqs(0.5, 0, 0.5),
+        fitness=Fitness(w11=1, w12=1, w22=0.1),
         mut_rates=MutRates(a2A=0.01, A2a=0.01),
         selfing_coeff=0,
     )
@@ -347,7 +385,7 @@ if __name__ == "__main__":
     pop_size_logger = PopSizeLogger()
     genotypic_freqs_logger = GenotypicFreqsLogger()
     simulate(
-        pops=[pop1],
+        pops=[pop1, pop2],
         num_generations=20,
         demographic_events=demographic_events,
         random_seed=42,
@@ -356,4 +394,4 @@ if __name__ == "__main__":
     print(allelic_freqs_logger.values_per_generation)
     print(pop_size_logger.values_per_generation)
 
-    plot_freqs("../temp.png", allelic_freqs_logger, genotypic_freqs_logger)
+    plot_freqs("../temp.png", allelic_freqs_logger, genotypic_freqs_logger, "pop1")
