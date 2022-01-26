@@ -1,9 +1,9 @@
-from cProfile import label
+from operator import ge
 from typing import Callable, Union, Iterable
 import random
 import math
 from array import array
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 
 import numpy
 import pandas
@@ -127,8 +127,41 @@ class Population:
         else:
             return "Aa"
 
-    def evolve_to_next_generation(self):
+    def evolve_to_next_generation(self, migration_origins=None):
         genotypic_freqs = self.genotypic_freqs
+
+        if migration_origins is None:
+            migration_origins = []
+
+        freq_AA = genotypic_freqs.AA
+        freq_Aa = genotypic_freqs.Aa
+
+        # migration
+        this_pop_contribution = 1 - sum(
+            [origin["inmigrant_rate"] for origin in migration_origins]
+        )
+        if this_pop_contribution < 0:
+            raise ValueError(f"Too many inmigrants for pop {self.id}, more than 100%")
+
+        freq_AA = this_pop_contribution * freq_AA + sum(
+            [
+                origin["from_pop"].genotypic_freqs.AA * origin["inmigrant_rate"]
+                for origin in migration_origins
+            ]
+        )
+        freq_Aa = this_pop_contribution * freq_Aa + sum(
+            [
+                origin["from_pop"].genotypic_freqs.Aa * origin["inmigrant_rate"]
+                for origin in migration_origins
+            ]
+        )
+        freq_aa = this_pop_contribution * genotypic_freqs.aa + sum(
+            [
+                origin["from_pop"].genotypic_freqs.aa * origin["inmigrant_rate"]
+                for origin in migration_origins
+            ]
+        )
+        assert math.isclose(freq_AA + freq_Aa + freq_aa, 1)
 
         # selection
         fitness = self.fitness
@@ -138,11 +171,11 @@ class Population:
                 msg = "fitness is 0 because the remaining genotypes have a zero fitness, population would die"
                 raise RuntimeError(msg)
 
-            freq_AA = genotypic_freqs.AA * fitness.w11 / w_avg
-            freq_Aa = genotypic_freqs.Aa * fitness.w12 / w_avg
+            freq_AA = freq_AA * fitness.w11 / w_avg
+            freq_Aa = freq_Aa * fitness.w12 / w_avg
         else:
-            freq_AA = genotypic_freqs.AA
-            freq_Aa = genotypic_freqs.Aa
+            freq_AA = freq_AA
+            freq_Aa = freq_Aa
 
         # mutation
         if self.mut_rates:
@@ -217,6 +250,20 @@ class Population:
         self.genotypic_freqs = GenotypicFreqs(freq_AA, freq_Aa)
 
 
+def _update_events(demographic_events, num_generation, active_migrations):
+    for event in demographic_events:
+        event_num_generation = event.get("num_generation")
+        if event_num_generation is not None and event_num_generation != num_generation:
+            continue
+
+        if event["type"] == "size_change":
+            event["pop"].size = event["new_size"]
+        elif event["type"] == "migration_start":
+            active_migrations[event["id"]] = event
+        elif event["type"] == "migration_stop":
+            del active_migrations[event["migration_id"]]
+
+
 def simulate(
     pops: list[Population],
     num_generations: int,
@@ -228,27 +275,28 @@ def simulate(
         numpy.random.seed(random_seed)
         random.seed(random_seed)
 
-    if demographic_events is None:
-        demographic_events = []
-
     for logger in loggers:
         logger(pops, num_generation=1)
 
+    if demographic_events is None:
+        demographic_events = []
+    active_migrations = {}
+    _update_events(demographic_events, 1, active_migrations)
+
     for num_generation in range(2, num_generations + 1):
-
-        for event in demographic_events:
-            event_num_generation = event.get("num_generation")
-            if (
-                event_num_generation is not None
-                and event_num_generation != num_generation
-            ):
-                continue
-
-            if event["type"] == "size_change":
-                event["pop"].size = event["new_size"]
+        _update_events(demographic_events, num_generation, active_migrations)
 
         for pop in pops:
-            pop.evolve_to_next_generation()
+            migration_origin_pops = defaultdict(list)
+            for migration in active_migrations.values():
+                if migration["to_pop"].id == pop.id:
+                    migration_origin_pops[pop.id].append(
+                        {
+                            "from_pop": migration["from_pop"],
+                            "inmigrant_rate": migration["inmigrant_rate"],
+                        }
+                    )
+            pop.evolve_to_next_generation(migration_origin_pops[pop.id])
 
         for logger in loggers:
             logger(pops, num_generation)
@@ -360,27 +408,53 @@ if __name__ == "__main__":
         id="pop1",
         # size=100,
         size=INF,
-        genotypic_freqs=GenotypicFreqs(0.5, 0, 0.5),
+        genotypic_freqs=GenotypicFreqs(1, 0, 0),
         fitness=Fitness(w11=0.1, w12=0.1, w22=1),
-        mut_rates=MutRates(a2A=0.01, A2a=0.01),
+        # mut_rates=MutRates(a2A=0.01, A2a=0.01),
         selfing_coeff=0,
     )
     pop2 = Population(
         id="pop2",
         # size=100,
         size=INF,
-        genotypic_freqs=GenotypicFreqs(0.5, 0, 0.5),
-        fitness=Fitness(w11=1, w12=1, w22=0.1),
-        mut_rates=MutRates(a2A=0.01, A2a=0.01),
+        genotypic_freqs=GenotypicFreqs(0, 0, 1),
+        # fitness=Fitness(w11=1, w12=1, w22=0.1),
+        # mut_rates=MutRates(a2A=0.01, A2a=0.01),
         selfing_coeff=0,
     )
     pop_size_change = {
         "type": "size_change",
         "pop": pop1,
         "new_size": 1000,
-        "num_generation": 10,
+        "num_generation": 100,
     }
-    demographic_events = [pop_size_change]
+    migration_start1 = {
+        "id": "migration_pop1_to_pop2",
+        "type": "migration_start",
+        "from_pop": pop2,
+        "to_pop": pop1,
+        "inmigrant_rate": 0.1,
+        "num_generation": 1,
+    }
+    migration_start2 = {
+        "id": "migration_pop2_to_pop1",
+        "type": "migration_start",
+        "from_pop": pop1,
+        "to_pop": pop2,
+        "inmigrant_rate": 0.1,
+        "num_generation": 1,
+    }
+    migration_stop = {
+        "migration_id": "migration_pop1_to_pop2",
+        "num_generation": 20,
+        "type": "migration_stop",
+    }
+    demographic_events = [
+        pop_size_change,
+        migration_start1,
+        migration_start2,
+        migration_stop,
+    ]
     allelic_freqs_logger = AllelicFreqLogger()
     pop_size_logger = PopSizeLogger()
     genotypic_freqs_logger = GenotypicFreqsLogger()
@@ -391,7 +465,6 @@ if __name__ == "__main__":
         random_seed=42,
         loggers=[allelic_freqs_logger, pop_size_logger, genotypic_freqs_logger],
     )
-    print(allelic_freqs_logger.values_per_generation)
-    print(pop_size_logger.values_per_generation)
 
-    plot_freqs("../temp.png", allelic_freqs_logger, genotypic_freqs_logger, "pop1")
+    plot_freqs("../temp_pop1.png", allelic_freqs_logger, genotypic_freqs_logger, "pop1")
+    plot_freqs("../temp_pop2.png", allelic_freqs_logger, genotypic_freqs_logger, "pop2")
