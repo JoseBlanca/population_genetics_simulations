@@ -1,3 +1,4 @@
+from cProfile import label
 from typing import Callable, Union, Iterable
 import random
 import math
@@ -5,6 +6,27 @@ from array import array
 from collections import namedtuple
 
 import numpy
+
+import matplotlib.pyplot as plt
+
+INF = math.inf
+
+MENDELIAN_SEGREGATIONS = {
+    ("AA", "AA"): [(1, 0, 0)],
+    ("aa", "aa"): [(0, 0, 1)],
+    ("AA", "aa"): [(0, 1, 0)],
+    ("aa", "AA"): [(0, 1, 0)],
+    ("AA", "Aa"): ((1, 0, 0), (0, 1, 0)),
+    ("Aa", "AA"): ((1, 0, 0), (0, 1, 0)),
+    ("aa", "Aa"): ((0, 0, 1), (0, 1, 0)),
+    ("Aa", "aa"): ((0, 0, 1), (0, 1, 0)),
+    ("Aa", "Aa"): (
+        (1, 0, 0),
+        (0, 1, 0),
+        (0, 1, 0),
+        (0, 0, 1),
+    ),
+}
 
 
 class GenotypicFreqs:
@@ -41,6 +63,16 @@ def calc_allelic_freq(genotypic_freqs):
     return genotypic_freqs.AA + genotypic_freqs.Aa * 0.5
 
 
+def calc_allelic_freqs(genotypic_freqs):
+    return AllelicFreqs(calc_allelic_freq(genotypic_freqs))
+
+
+def calc_hwe_genotypic_freqs(allelic_freqs):
+    freq_AA = allelic_freqs.A ** 2
+    freq_Aa = 2 * allelic_freqs.A * allelic_freqs.a
+    return GenotypicFreqs(freq_AA, freq_Aa)
+
+
 def _calc_w_avg(genotypic_freqs, fitness):
     if fitness is None:
         raise ValueError("fitness is None")
@@ -56,8 +88,8 @@ class Population:
     def __init__(
         self,
         id: str,
-        size: int,
         genotypic_freqs: GenotypicFreqs,
+        size: Union[int, float] = INF,
         fitness: Union[Fitness, None] = None,
         mut_rates: Union[MutRates, None] = None,
         selfing_coeff: float = 0,
@@ -90,7 +122,7 @@ class Population:
         else:
             return "Aa"
 
-    def evolve(self):
+    def evolve_to_next_generation(self):
         genotypic_freqs = self.genotypic_freqs
 
         # selection
@@ -119,9 +151,9 @@ class Population:
 
             new_aa = AA0 * mu2 + Aa0 * mu
             new_AA = aa0 * nu2 + Aa0 * nu
-            new_Aa = AA0 * mu + aa0 * nu
-            AA_removed = AA0 * mu2 + AA0 * mu
-            aa_removed = aa0 * nu2 + aa0 * nu
+            new_Aa = 2 * AA0 * mu + 2 * aa0 * nu
+            AA_removed = AA0 * mu2 + 2 * AA0 * mu
+            aa_removed = aa0 * nu2 + 2 * aa0 * nu
             Aa_removed = Aa0 * mu + Aa0 * nu
 
             AA1 = AA0 + new_AA - AA_removed
@@ -133,32 +165,49 @@ class Population:
 
         # drift
         selfing_coeff = self.selfing_coeff
-        mendel_het_cross_segregation = ((1, 0, 0), (0, 1, 0), (0, 1, 0), (0, 0, 1))
-        num_AA = 0
-        num_Aa = 0
-        num_aa = 0
-        for _ in range(self.size):
-            parent1 = self._choose_parent(freq_AA, freq_Aa)
+        if self.size is None or math.isinf(self.size):
+            # selfed indivuals
+            selfed_freq_AA1 = freq_AA + freq_Aa * 0.25
+            selfed_freq_Aa1 = freq_Aa * 0.5
+            # non selfed individuals
+            allelic_freqs = calc_allelic_freqs(GenotypicFreqs(freq_AA, freq_Aa))
+            panmix_genotypic_freqs = calc_hwe_genotypic_freqs(allelic_freqs)
+            # final freqs
+            freq_AA = selfed_freq_AA1 * selfing_coeff + panmix_genotypic_freqs.AA * (
+                1 - selfing_coeff
+            )
+            freq_Aa = selfed_freq_Aa1 * selfing_coeff + panmix_genotypic_freqs.Aa * (
+                1 - selfing_coeff
+            )
+        else:
+            num_AA = 0
+            num_Aa = 0
+            num_aa = 0
+            for _ in range(self.size):
+                parent1 = self._choose_parent(freq_AA, freq_Aa)
 
-            value = random.uniform(0, 1)
-            if value < selfing_coeff:
-                parent2 = parent1
-            else:
-                parent2 = self._choose_parent(freq_AA, freq_Aa)
+                parent2 = None
+                if selfing_coeff is not None:
+                    value = random.uniform(0, 1)
+                    if value < selfing_coeff:
+                        parent2 = parent1
+                if parent2 is None:
+                    parent2 = self._choose_parent(freq_AA, freq_Aa)
 
-            if (parent1, parent2) == ("AA", "AA"):
-                num_AA += 1
-            elif (parent1, parent2) == ("aa", "aa"):
-                num_aa += 1
-            else:
-                result = random.choice(mendel_het_cross_segregation)
-                num_AA += result[0]
-                num_Aa += result[1]
-                num_aa += result[2]
-        total_indis = num_AA + num_Aa + num_aa
-        assert total_indis == self.size
-        freq_AA = num_AA / total_indis
-        freq_Aa = num_Aa / total_indis
+                mendelian_choices = MENDELIAN_SEGREGATIONS[(parent1, parent2)]
+                if len(mendelian_choices) == 1:
+                    descendants = mendelian_choices[0]
+                else:
+                    descendants = random.choice(mendelian_choices)
+                num_AA += descendants[0]
+                num_Aa += descendants[1]
+                num_aa += descendants[2]
+
+            total_indis = num_AA + num_Aa + num_aa
+            assert total_indis == self.size
+
+            freq_AA = num_AA / total_indis
+            freq_Aa = num_Aa / total_indis
 
         self.genotypic_freqs = GenotypicFreqs(freq_AA, freq_Aa)
 
@@ -177,6 +226,9 @@ def simulate(
     if demographic_events is None:
         demographic_events = []
 
+    for logger in loggers:
+        logger(pops)
+
     for num_generation in range(1, num_generations + 1):
 
         for event in demographic_events:
@@ -191,7 +243,7 @@ def simulate(
                 event["pop"].size = event["new_size"]
 
         for pop in pops:
-            pop.evolve()
+            pop.evolve_to_next_generation()
 
         for logger in loggers:
             logger(pops)
@@ -219,7 +271,54 @@ class AllelicFreqLogger(_PerPopLogger):
 
 class PopSizeLogger(_PerPopLogger):
     def _calc_value_for_pop(self, pop):
-        return pop.size
+        size = pop.size
+        if size is None:
+            size = math.inf
+        return size
+
+
+class GenotypicFreqsLogger:
+    def __init__(self):
+        self.values_per_generation = None
+
+    def __call__(self, pops: Iterable[Population]):
+        if self.values_per_generation is None:
+            values = {}
+            for pop in pops:
+                values[pop.id] = {
+                    "freqs_AA": array("f"),
+                    "freqs_Aa": array("f"),
+                    "freqs_aa": array("f"),
+                }
+            self.values_per_generation = values
+        else:
+            values = self.values_per_generation
+
+        for pop in pops:
+            genotypic_freqs = pop.genotypic_freqs
+            values[pop.id]["freqs_AA"].append(genotypic_freqs.AA)
+            values[pop.id]["freqs_Aa"].append(genotypic_freqs.Aa)
+            values[pop.id]["freqs_aa"].append(genotypic_freqs.aa)
+
+
+def plot_freqs(plot_path, allelic_freqs_logger, genotypic_freqs_logger):
+    figure, axess = plt.subplots(nrows=2, sharex=True)
+    allelic_freq = numpy.array(allelic_freqs_logger.values_per_generation["pop1"])
+    generations = numpy.arange(1, allelic_freq.size + 1)
+
+    allelic_freq_axes = axess[0]
+    allelic_freq_axes.plot(generations, allelic_freq)
+    allelic_freq_axes.set_ylabel("allelic freq A")
+
+    genotypic_freq_axes = axess[1]
+    genotypic_freqs = genotypic_freqs_logger.values_per_generation["pop1"]
+    for genotypic_freq_name, this_genotypic_freqs in genotypic_freqs.items():
+        genotypic_freq_axes.plot(
+            generations, this_genotypic_freqs, label=genotypic_freq_name
+        )
+    genotypic_freq_axes.legend()
+
+    figure.savefig(plot_path)
 
 
 # TODO
@@ -230,26 +329,31 @@ if __name__ == "__main__":
 
     pop1 = Population(
         id="pop1",
-        size=100,
+        # size=100,
+        size=INF,
         genotypic_freqs=GenotypicFreqs(1, 0, 0),
-        fitness=Fitness(w11=0.1, w12=0.5, w22=1),
-        mut_rates=MutRates(a2A=0, A2a=0.1),
+        fitness=Fitness(w11=0.1, w12=0.1, w22=1),
+        mut_rates=MutRates(a2A=0.01, A2a=0.01),
+        selfing_coeff=0,
     )
     pop_size_change = {
         "type": "size_change",
         "pop": pop1,
-        "new_size": 10000,
-        "num_generation": 3,
+        "new_size": 1000,
+        "num_generation": 10,
     }
     demographic_events = [pop_size_change]
     allelic_freqs_logger = AllelicFreqLogger()
     pop_size_logger = PopSizeLogger()
+    genotypic_freqs_logger = GenotypicFreqsLogger()
     simulate(
         pops=[pop1],
-        num_generations=10,
+        num_generations=20,
         demographic_events=demographic_events,
         random_seed=42,
-        loggers=[allelic_freqs_logger, pop_size_logger],
+        loggers=[allelic_freqs_logger, pop_size_logger, genotypic_freqs_logger],
     )
     print(allelic_freqs_logger.values_per_generation)
     print(pop_size_logger.values_per_generation)
+
+    plot_freqs("../temp.png", allelic_freqs_logger, genotypic_freqs_logger)
