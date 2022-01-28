@@ -1,7 +1,0 @@
-#fwdpy11
-#msprime
-#demes
-pandas
-matplotlib
-jupyterlab
-ipywidgets
