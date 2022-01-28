@@ -1,7 +1,9 @@
 name: population_genetics_simulations
 dependencies:
   - python=3.9
-  - pandas
-  - matplotlib
-  - jupyterlab
-  - ipywidgets
+  - pip
+  - pip:
+    - pandas
+    - matplotlib
+    - jupyterlab
+    - ipywidgets
