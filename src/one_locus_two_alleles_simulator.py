@@ -398,10 +398,6 @@ def plot_freqs(plot_path, allelic_freqs_logger, genotypic_freqs_logger, pop_id):
     figure.savefig(plot_path)
 
 
-# TODO
-# admixture
-# migration
-
 if __name__ == "__main__":
 
     pop1 = Population(
