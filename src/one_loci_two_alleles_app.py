@@ -1,3 +1,5 @@
+import math
+
 import ipywidgets as widget
 from IPython.display import display, clear_output
 from matplotlib import pyplot as plt
@@ -149,9 +151,19 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         fraction_aa = self.aa_fraction_slider.value
 
         frac_sum = fraction_AA + fraction_Aa + fraction_aa
+        if math.isclose(frac_sum, 0):
+            self.AA_fraction_slider.value = 1
+            self.Aa_fraction_slider.value = 1
+            self.aa_fraction_slider.value = 1
+            fraction_AA = self.AA_fraction_slider.value
+            fraction_Aa = self.Aa_fraction_slider.value
+            fraction_aa = self.aa_fraction_slider.value
+
+        frac_sum = fraction_AA + fraction_Aa + fraction_aa
         freq_AA = fraction_AA / frac_sum
         freq_Aa = fraction_Aa / frac_sum
         freq_aa = fraction_aa / frac_sum
+
         self.freq_AA_slider.value = freq_AA
         self.freq_Aa_slider.value = freq_Aa
         self.freq_aa_slider.value = freq_aa
