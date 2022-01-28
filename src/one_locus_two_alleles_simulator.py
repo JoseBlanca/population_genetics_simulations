@@ -97,12 +97,12 @@ class Population:
         size: Union[int, float] = INF,
         fitness: Union[Fitness, None] = None,
         mut_rates: Union[MutRates, None] = None,
-        selfing_coeff: float = 0,
+        selfing_rate: float = 0,
     ):
         self.id = id
         self.size = size
         self.genotypic_freqs = genotypic_freqs
-        self.selfing_coeff = selfing_coeff
+        self.selfing_rate = selfing_rate
 
         if fitness is not None:
             w_avg = _calc_w_avg(genotypic_freqs, fitness)
@@ -202,7 +202,7 @@ class Population:
             freq_Aa = Aa1
 
         # drift
-        selfing_coeff = self.selfing_coeff
+        selfing_rate = self.selfing_rate
         if self.size is None or math.isinf(self.size):
             # selfed indivuals
             selfed_freq_AA1 = freq_AA + freq_Aa * 0.25
@@ -211,11 +211,11 @@ class Population:
             allelic_freqs = calc_allelic_freqs(GenotypicFreqs(freq_AA, freq_Aa))
             panmix_genotypic_freqs = calc_hwe_genotypic_freqs(allelic_freqs)
             # final freqs
-            freq_AA = selfed_freq_AA1 * selfing_coeff + panmix_genotypic_freqs.AA * (
-                1 - selfing_coeff
+            freq_AA = selfed_freq_AA1 * selfing_rate + panmix_genotypic_freqs.AA * (
+                1 - selfing_rate
             )
-            freq_Aa = selfed_freq_Aa1 * selfing_coeff + panmix_genotypic_freqs.Aa * (
-                1 - selfing_coeff
+            freq_Aa = selfed_freq_Aa1 * selfing_rate + panmix_genotypic_freqs.Aa * (
+                1 - selfing_rate
             )
         else:
             num_AA = 0
@@ -225,9 +225,9 @@ class Population:
                 parent1 = self._choose_parent(freq_AA, freq_Aa)
 
                 parent2 = None
-                if selfing_coeff is not None:
+                if selfing_rate is not None:
                     value = random.uniform(0, 1)
-                    if value < selfing_coeff:
+                    if value < selfing_rate:
                         parent2 = parent1
                 if parent2 is None:
                     parent2 = self._choose_parent(freq_AA, freq_Aa)

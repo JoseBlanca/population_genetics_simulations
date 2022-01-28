@@ -4,6 +4,11 @@ import ipywidgets as widget
 from IPython.display import display, clear_output
 from matplotlib import pyplot as plt
 
+from one_locus_two_alleles_simulations import (
+    simulate_one_locus_two_alleles_one_pop,
+    INF,
+)
+
 
 class OneLociTwoAllelesSimulationApp(widget.VBox):
     def __init__(self):
@@ -176,20 +181,46 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
 
         pop_size = self.pop_size_slider.value
         if self.pop_inf_checkbox.value:
-            pop_size = None
+            pop_size = INF
         kwargs["pop_size"] = pop_size
 
-        kwargs["W_AA"] = self.fitness_AA_slider.value
-        kwargs["W_Aa"] = self.fitness_Aa_slider.value
-        kwargs["W_aa"] = self.fitness_aa_slider.value
+        wAA = self.fitness_AA_slider.value
+        wAa = self.fitness_Aa_slider.value
+        waa = self.fitness_aa_slider.value
+        if math.isclose(wAA + wAa + waa, 3):
+            wAA = 1
+            wAa = 1
+            waa = 1
+        kwargs["wAA"] = wAA
+        kwargs["wAa"] = wAa
+        kwargs["waa"] = waa
 
-        kwargs["mut_a2A"] = self.mut_a2A_slider.value
-        kwargs["mut_A2a"] = self.mut_A2a_slider.value
+        mut_a2A = self.mut_a2A_slider.value
+        mut_A2a = self.mut_A2a_slider.value
+        if math.isclose(mut_a2A + mut_A2a, 0):
+            mut_a2A = 0
+            mut_A2a = 0
+        kwargs["mut_a2A"] = mut_a2A
+        kwargs["mut_A2a"] = mut_A2a
 
         kwargs["selfing_rate"] = self.self_rate_slider.value
         return kwargs
 
     def generate_simulation_plot(self, **kwargs):
-        print(kwargs)
-        fig, axes = plt.subplots(figsize=(8, 4))
-        axes.plot([kwargs["freq_AA"]] * 10)
+        fig, axess = plt.subplots(nrows=2, sharex=True, figsize=(8, 8))
+
+        simulate_one_locus_two_alleles_one_pop(
+            allelic_freq_axes=axess[0],
+            genotypic_freqs_axes=axess[1],
+            freq_AA=kwargs["freq_AA"],
+            freq_Aa=kwargs["freq_Aa"],
+            freq_aa=kwargs["freq_aa"],
+            pop_size=kwargs["pop_size"],
+            num_generations=100,
+            w11=kwargs["wAA"],
+            w12=kwargs["wAa"],
+            w22=kwargs["waa"],
+            A2a=kwargs["mut_a2A"],
+            a2A=kwargs["mut_a2A"],
+            selfing_rate=kwargs["selfing_rate"],
+        )
