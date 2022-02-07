@@ -17,9 +17,16 @@ COLORS = {
 }
 
 
-def plot_allelic_freq_one_pop(allelic_freqs_logger, axes, pop):
+def plot_allelic_freq_one_pop(
+    allelic_freqs_logger, axes, pop, take_color_from_color_wheel=False
+):
     freqs = allelic_freqs_logger.values_per_generation[pop.id]
-    axes.plot(freqs.index, freqs, color=COLORS["freq_A"])
+
+    kwargs = {}
+    if take_color_from_color_wheel:
+        kwargs["color"] = COLORS["freq_A"]
+
+    axes.plot(freqs.index, freqs, **kwargs)
     axes.set_ylabel("allelic freq A")
     axes.set_ylim([0, 1])
 

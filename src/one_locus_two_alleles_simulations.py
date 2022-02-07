@@ -25,8 +25,13 @@ def simulate_one_locus_two_alleles_one_pop(
     A2a=0,
     a2A=0,
     selfing_rate=0,
+    num_populations=1,
 ):
-    genotypic_freqs = GenotypicFreqs(freq_AA=freq_AA, freq_Aa=freq_Aa, freq_aa=freq_aa)
+
+    if genotypic_freqs_axes is not None and num_populations != 1:
+        raise ValueError(
+            "if num_populations > 1 then genotypic_freqs_axes should be None"
+        )
 
     if (w11, w12, w22) == (1, 1, 1):
         fitness = None
@@ -38,30 +43,41 @@ def simulate_one_locus_two_alleles_one_pop(
     else:
         mut_rates = MutRates(A2a, a2A)
 
-    pop1 = Population(
-        id="pop1",
-        size=pop_size,
-        genotypic_freqs=genotypic_freqs,
-        fitness=fitness,
-        mut_rates=mut_rates,
-        selfing_rate=selfing_rate,
-    )
+    for i in range(num_populations):
+        genotypic_freqs = GenotypicFreqs(
+            freq_AA=freq_AA, freq_Aa=freq_Aa, freq_aa=freq_aa
+        )
+        pop1 = Population(
+            id="pop1",
+            size=pop_size,
+            genotypic_freqs=genotypic_freqs,
+            fitness=fitness,
+            mut_rates=mut_rates,
+            selfing_rate=selfing_rate,
+        )
 
-    allelic_freqs_logger = AllelicFreqLogger()
-    genotypic_freqs_logger = GenotypicFreqsLogger()
-    simulate(
-        pops=[pop1],
-        num_generations=num_generations,
-        demographic_events=None,
-        random_seed=None,
-        loggers=[allelic_freqs_logger, genotypic_freqs_logger],
-    )
+        allelic_freqs_logger = AllelicFreqLogger()
+        genotypic_freqs_logger = GenotypicFreqsLogger()
+        simulate(
+            pops=[pop1],
+            num_generations=num_generations,
+            demographic_events=None,
+            random_seed=None,
+            loggers=[allelic_freqs_logger, genotypic_freqs_logger],
+        )
 
-    plot.plot_allelic_freq_one_pop(allelic_freqs_logger, allelic_freq_axes, pop1)
-    plot.plot_genotypic_freqs_one_pop(
-        genotypic_freqs_logger, genotypic_freqs_axes, pop1
-    )
-    genotypic_freqs_axes.set_xlabel("Num. generations")
+        plot.plot_allelic_freq_one_pop(
+            allelic_freqs_logger,
+            allelic_freq_axes,
+            pop1,
+            take_color_from_color_wheel=True,
+        )
+
+    if genotypic_freqs_axes is not None:
+        plot.plot_genotypic_freqs_one_pop(
+            genotypic_freqs_logger, genotypic_freqs_axes, pop1
+        )
+        genotypic_freqs_axes.set_xlabel("Num. generations")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import math
+from multiprocessing.sharedctypes import Value
 
 import ipywidgets as widget
 from IPython.display import clear_output
@@ -12,14 +13,32 @@ from plot import GENTOTYPIC_FREQS_LABELS, COLORS
 
 
 class OneLociTwoAllelesSimulationApp(widget.VBox):
-    def __init__(self, allow_selection=True, allow_mutation=True, allow_selfing=True):
+    def __init__(
+        self,
+        allow_selection=True,
+        allow_mutation=True,
+        allow_selfing=True,
+        asssume_hw=False,
+        allow_several_populations=False,
+        show_genotypic_freqs_plot=True,
+    ):
         widget.VBox.__init__(self, _dom_classes=["widget-interact"])
 
         children_widgets = []
 
+        if asssume_hw and allow_selfing:
+            raise ValueError("assume_hw and allow_selfing options are not compatible")
+        if allow_several_populations and show_genotypic_freqs_plot:
+            raise ValueError(
+                "show_genotypic_freqs_plot and allow_several_populations options are not compatible"
+            )
+
         self.allow_selection = allow_selection
         self.allow_mutation = allow_mutation
         self.allow_selfing = allow_selfing
+        self.assume_hw = asssume_hw
+        self.allow_several_populations = allow_several_populations
+        self.show_genotypic_freqs_plot = show_genotypic_freqs_plot
 
         self.setup_ui(children_widgets)
 
@@ -44,11 +63,12 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         freq_A = genotypic_freqs["freq_AA"] + 0.5 * genotypic_freqs["freq_Aa"]
         allelic_freq_axes.plot([1], [freq_A], marker="o", color=COLORS["freq_A"])
 
-        for freq_type in ["freq_AA", "freq_Aa", "freq_aa"]:
-            kwargs = {"marker": "o", "color": COLORS[freq_type]}
-            if add_label:
-                kwargs["label"] = geno_labels[freq_type]
-            genotypic_freqs_axes.plot([1], [genotypic_freqs[freq_type]], **kwargs)
+        if self.show_genotypic_freqs_plot:
+            for freq_type in ["freq_AA", "freq_Aa", "freq_aa"]:
+                kwargs = {"marker": "o", "color": COLORS[freq_type]}
+                if add_label:
+                    kwargs["label"] = geno_labels[freq_type]
+                genotypic_freqs_axes.plot([1], [genotypic_freqs[freq_type]], **kwargs)
 
     def show_initial_values(self):
 
@@ -72,8 +92,9 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
                 },
                 add_label=True,
             )
+            if genotypic_freqs_axes is not None:
+                genotypic_freqs_axes.legend()
 
-            genotypic_freqs_axes.legend()
             self._set_xy_plot_lims(
                 allelic_freq_axes,
                 genotypic_freqs_axes,
@@ -86,8 +107,11 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         self, allelic_freq_axes, genotypic_freqs_axes, num_generations
     ):
         allelic_freq_axes.set_ylim((0, 1))
-        genotypic_freqs_axes.set_ylim((0, 1))
-        genotypic_freqs_axes.set_xlim((1, num_generations))
+        if genotypic_freqs_axes is None:
+            allelic_freq_axes.set_xlim((1, num_generations))
+        else:
+            genotypic_freqs_axes.set_ylim((0, 1))
+            genotypic_freqs_axes.set_xlim((1, num_generations))
 
     def update(self, *_):
         widget.interaction.show_inline_matplotlib_plots()
@@ -101,50 +125,63 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
     def setup_ui(self, children_widgets):
         box_border_style = "solid 1px #cccccc"
 
-        self.AA_fraction_slider = widget.FloatSlider(
-            min=0, max=1, value=0, description="AA"
-        )
-        self.Aa_fraction_slider = widget.FloatSlider(
-            min=0, max=1, value=1, description="Aa"
-        )
-        self.aa_fraction_slider = widget.FloatSlider(
-            min=0, max=1, value=0, description="aa"
-        )
-        self.AA_fraction_slider.observe(self.update_freq_sliders)
-        self.Aa_fraction_slider.observe(self.update_freq_sliders)
-        self.aa_fraction_slider.observe(self.update_freq_sliders)
-        fraction_vbox = widget.VBox(
-            [
-                widget.Label("Genotypic proportions"),
-                self.AA_fraction_slider,
-                self.Aa_fraction_slider,
-                self.aa_fraction_slider,
-            ]
-        )
+        if self.assume_hw:
+            label = widget.Label("Freq. A")
+            self.freq_A_slider = widget.FloatSlider(
+                min=0,
+                max=1,
+                value=0.5,
+            )
+            self.freq_A_slider.observe(self.update_freq_sliders)
+            freqs_box = widget.HBox(
+                [label, self.freq_A_slider],
+                layout=widget.Layout(border=box_border_style),
+            )
+        else:
+            self.AA_fraction_slider = widget.FloatSlider(
+                min=0, max=1, value=0, description="AA"
+            )
+            self.Aa_fraction_slider = widget.FloatSlider(
+                min=0, max=1, value=1, description="Aa"
+            )
+            self.aa_fraction_slider = widget.FloatSlider(
+                min=0, max=1, value=0, description="aa"
+            )
+            self.AA_fraction_slider.observe(self.update_freq_sliders)
+            self.Aa_fraction_slider.observe(self.update_freq_sliders)
+            self.aa_fraction_slider.observe(self.update_freq_sliders)
+            fraction_vbox = widget.VBox(
+                [
+                    widget.Label("Genotypic proportions"),
+                    self.AA_fraction_slider,
+                    self.Aa_fraction_slider,
+                    self.aa_fraction_slider,
+                ]
+            )
 
-        self.freq_AA_slider = widget.FloatSlider(
-            min=0, max=1, value=0, description="AA", disabled=True
-        )
-        self.freq_Aa_slider = widget.FloatSlider(
-            min=0, max=1, value=1, description="Aa", disabled=True
-        )
-        self.freq_aa_slider = widget.FloatSlider(
-            min=0, max=1, value=0, description="aa", disabled=True
-        )
-        genotypic_freqs_vbox = widget.VBox(
-            [
-                widget.Label(
-                    "Initial genotypic freqs (Calculated from the proportions)"
-                ),
-                self.freq_AA_slider,
-                self.freq_Aa_slider,
-                self.freq_aa_slider,
-            ]
-        )
-        freqs_box = widget.HBox(
-            [fraction_vbox, genotypic_freqs_vbox],
-            layout=widget.Layout(border=box_border_style),
-        )
+            self.freq_AA_slider = widget.FloatSlider(
+                min=0, max=1, value=0, description="AA", disabled=True
+            )
+            self.freq_Aa_slider = widget.FloatSlider(
+                min=0, max=1, value=1, description="Aa", disabled=True
+            )
+            self.freq_aa_slider = widget.FloatSlider(
+                min=0, max=1, value=0, description="aa", disabled=True
+            )
+            genotypic_freqs_vbox = widget.VBox(
+                [
+                    widget.Label(
+                        "Initial genotypic freqs (Calculated from the proportions)"
+                    ),
+                    self.freq_AA_slider,
+                    self.freq_Aa_slider,
+                    self.freq_aa_slider,
+                ]
+            )
+            freqs_box = widget.HBox(
+                [fraction_vbox, genotypic_freqs_vbox],
+                layout=widget.Layout(border=box_border_style),
+            )
 
         label = widget.Label("Pop. size")
         self.pop_size_slider = widget.IntSlider(min=1, max=1000, value=100)
@@ -161,6 +198,14 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             [label, self.num_generations_slider],
             layout=widget.Layout(border=box_border_style),
         )
+
+        if self.allow_several_populations:
+            label = widget.Label("Num. populations")
+            self.num_populations_slider = widget.IntSlider(min=1, max=20, value=1)
+            num_populations_box = widget.HBox(
+                [label, self.num_populations_slider],
+                layout=widget.Layout(border=box_border_style),
+            )
 
         if self.allow_selection:
             label = widget.Label("Fitness")
@@ -217,39 +262,51 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         children_widgets.append(freqs_box)
         children_widgets.append(pop_size_box)
         children_widgets.append(num_generations_box)
+        if self.allow_several_populations:
+            children_widgets.append(num_populations_box)
         if accordion_tabs:
             children_widgets.append(accordion_box)
 
     def update_freq_sliders(self, change):
-        fraction_AA = self.AA_fraction_slider.value
-        fraction_Aa = self.Aa_fraction_slider.value
-        fraction_aa = self.aa_fraction_slider.value
-
-        frac_sum = fraction_AA + fraction_Aa + fraction_aa
-        if math.isclose(frac_sum, 0):
-            self.AA_fraction_slider.value = 1
-            self.Aa_fraction_slider.value = 1
-            self.aa_fraction_slider.value = 1
+        if not self.assume_hw:
             fraction_AA = self.AA_fraction_slider.value
             fraction_Aa = self.Aa_fraction_slider.value
             fraction_aa = self.aa_fraction_slider.value
 
-        frac_sum = fraction_AA + fraction_Aa + fraction_aa
-        freq_AA = fraction_AA / frac_sum
-        freq_Aa = fraction_Aa / frac_sum
-        freq_aa = fraction_aa / frac_sum
+            frac_sum = fraction_AA + fraction_Aa + fraction_aa
+            if math.isclose(frac_sum, 0):
+                self.AA_fraction_slider.value = 1
+                self.Aa_fraction_slider.value = 1
+                self.aa_fraction_slider.value = 1
+                fraction_AA = self.AA_fraction_slider.value
+                fraction_Aa = self.Aa_fraction_slider.value
+                fraction_aa = self.aa_fraction_slider.value
 
-        self.freq_AA_slider.value = freq_AA
-        self.freq_Aa_slider.value = freq_Aa
-        self.freq_aa_slider.value = freq_aa
+            frac_sum = fraction_AA + fraction_Aa + fraction_aa
+            freq_AA = fraction_AA / frac_sum
+            freq_Aa = fraction_Aa / frac_sum
+            freq_aa = fraction_aa / frac_sum
+
+            self.freq_AA_slider.value = freq_AA
+            self.freq_Aa_slider.value = freq_Aa
+            self.freq_aa_slider.value = freq_aa
 
         self.show_initial_values()
 
     def _get_ui_simulation_parameters(self):
         kwargs = {}
-        kwargs["freq_AA"] = self.freq_AA_slider.value
-        kwargs["freq_Aa"] = self.freq_Aa_slider.value
-        kwargs["freq_aa"] = self.freq_aa_slider.value
+        if self.assume_hw:
+            freq_A = self.freq_A_slider.value
+            freq_AA = freq_A**2
+            freq_Aa = 2 * freq_A * (1 - freq_A)
+            freq_aa = 1 - freq_AA - freq_Aa
+        else:
+            freq_AA = self.freq_AA_slider.value
+            freq_Aa = self.freq_Aa_slider.value
+            freq_aa = self.freq_aa_slider.value
+        kwargs["freq_AA"] = freq_AA
+        kwargs["freq_Aa"] = freq_Aa
+        kwargs["freq_aa"] = freq_aa
 
         pop_size = self.pop_size_slider.value
         if self.pop_inf_checkbox.value:
@@ -280,10 +337,18 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
 
         kwargs["num_generations"] = self.num_generations_slider.value
 
+        if self.allow_several_populations:
+            kwargs["num_populations"] = self.num_populations_slider.value
+
         return kwargs
 
     def _get_matplotlib_axess(self):
-        fig, axess = plt.subplots(nrows=2, sharex=True, figsize=(8, 8))
+        if self.show_genotypic_freqs_plot:
+            fig, axess = plt.subplots(nrows=2, sharex=True, figsize=(8, 8))
+        else:
+            fig, axes = plt.subplots(figsize=(8, 4))
+            axess = (axes, None)
+
         return fig, axess
 
     def _get_simulation_parameters(self, **kwargs):
@@ -302,6 +367,9 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             sim_kwargs["a2A"] = kwargs["mut_a2A"]
         if self.allow_selfing:
             sim_kwargs["selfing_rate"] = kwargs["selfing_rate"]
+        if self.allow_several_populations:
+            sim_kwargs["num_populations"] = kwargs["num_populations"]
+
         return sim_kwargs
 
     def generate_simulation_plot(self, **kwargs):
@@ -312,7 +380,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         sim_kwargs["genotypic_freqs_axes"] = axess[1]
         for key, value in self._get_simulation_parameters(**kwargs).items():
             sim_kwargs[key] = value
-
+        # print(sim_kwargs)
         self._plot_initial_values(
             axess[0],
             axess[1],
@@ -322,6 +390,39 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
                 "freq_aa": sim_kwargs["freq_aa"],
             },
         )
+        # print(sim_kwargs)
 
         simulate_one_locus_two_alleles_one_pop(**sim_kwargs)
         self._set_xy_plot_lims(axess[0], axess[1], sim_kwargs["num_generations"])
+
+
+def get_app(app_name):
+    if app_name == "allelic_freqs_hw_assumed_app":
+        return OneLociTwoAllelesSimulationApp(
+            allow_selection=False,
+            allow_mutation=False,
+            allow_selfing=False,
+            asssume_hw=True,
+            allow_several_populations=True,
+            show_genotypic_freqs_plot=False,
+        )
+    elif app_name == "simple_one_pop_app":
+        return OneLociTwoAllelesSimulationApp(
+            allow_selection=False,
+            allow_mutation=False,
+            allow_selfing=False,
+            asssume_hw=False,
+            allow_several_populations=False,
+            show_genotypic_freqs_plot=True,
+        )
+    elif app_name == "full_one_pop_app":
+        return OneLociTwoAllelesSimulationApp(
+            allow_selection=True,
+            allow_mutation=True,
+            allow_selfing=True,
+            asssume_hw=False,
+            allow_several_populations=False,
+            show_genotypic_freqs_plot=True,
+        )
+    else:
+        raise ValueError(f"Unknown app: {app_name}")
