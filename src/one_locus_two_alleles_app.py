@@ -380,7 +380,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         sim_kwargs["genotypic_freqs_axes"] = axess[1]
         for key, value in self._get_simulation_parameters(**kwargs).items():
             sim_kwargs[key] = value
-        # print(sim_kwargs)
+
         self._plot_initial_values(
             axess[0],
             axess[1],
@@ -390,7 +390,6 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
                 "freq_aa": sim_kwargs["freq_aa"],
             },
         )
-        # print(sim_kwargs)
 
         simulate_one_locus_two_alleles_one_pop(**sim_kwargs)
         self._set_xy_plot_lims(axess[0], axess[1], sim_kwargs["num_generations"])

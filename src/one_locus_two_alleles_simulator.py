@@ -35,11 +35,12 @@ class GenotypicFreqs:
         self.AA = freq_AA
         self.Aa = freq_Aa
         expected_freq_aa = 1 - freq_AA - freq_Aa
-        if freq_aa is None:
-            freq_aa = expected_freq_aa
-        else:
-            if not math.isclose(expected_freq_aa, freq_aa):
-                raise ValueError("freq_aa should be 1 - freq_AA - freq_Aa")
+        if freq_aa is not None:
+            if not math.isclose(expected_freq_aa, freq_aa, rel_tol=0.001):
+                raise ValueError(
+                    f"freq_aa ({freq_aa}) should be 1 - freq_AA - freq_Aa ({expected_freq_aa})"
+                )
+        freq_aa = expected_freq_aa
 
         if not math.isclose(freq_aa + freq_AA + freq_Aa, 1):
             raise ValueError("Genotypic freqs should sum 1")
@@ -73,7 +74,7 @@ def calc_allelic_freqs(genotypic_freqs):
 
 
 def calc_hwe_genotypic_freqs(allelic_freqs):
-    freq_AA = allelic_freqs.A ** 2
+    freq_AA = allelic_freqs.A**2
     freq_Aa = 2 * allelic_freqs.A * allelic_freqs.a
     return GenotypicFreqs(freq_AA, freq_Aa)
 
@@ -180,9 +181,9 @@ class Population:
         # mutation
         if self.mut_rates:
             mu = self.mut_rates.A2a
-            mu2 = mu ** 2
+            mu2 = mu**2
             nu = self.mut_rates.a2A
-            nu2 = nu ** 2
+            nu2 = nu**2
             AA0 = freq_AA
             Aa0 = freq_Aa
             aa0 = 1 - freq_AA - freq_Aa
