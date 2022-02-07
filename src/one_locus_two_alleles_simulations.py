@@ -61,6 +61,7 @@ def simulate_one_locus_two_alleles_one_pop(
     plot.plot_genotypic_freqs_one_pop(
         genotypic_freqs_logger, genotypic_freqs_axes, pop1
     )
+    genotypic_freqs_axes.set_xlabel("Num. generations")
 
 
 if __name__ == "__main__":
