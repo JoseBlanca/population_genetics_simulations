@@ -100,6 +100,13 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             layout=widget.Layout(border=box_border_style),
         )
 
+        label = widget.Label("Num. generations")
+        self.num_generations_slider = widget.IntSlider(min=10, max=1000, value=100)
+        num_generations_box = widget.HBox(
+            [label, self.num_generations_slider],
+            layout=widget.Layout(border=box_border_style),
+        )
+
         label = widget.Label("Fitness")
         self.fitness_AA_slider = widget.FloatSlider(
             min=0, max=1, value=1, description="WAA"
@@ -148,6 +155,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
 
         children_widgets.append(freqs_box)
         children_widgets.append(pop_size_box)
+        children_widgets.append(num_generations_box)
         children_widgets.append(accordion_box)
 
     def update_freq_sliders(self, change):
@@ -204,6 +212,9 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         kwargs["mut_A2a"] = mut_A2a
 
         kwargs["selfing_rate"] = self.self_rate_slider.value
+
+        kwargs["num_generations"] = self.num_generations_slider.value
+
         return kwargs
 
     def generate_simulation_plot(self, **kwargs):
@@ -216,7 +227,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             freq_Aa=kwargs["freq_Aa"],
             freq_aa=kwargs["freq_aa"],
             pop_size=kwargs["pop_size"],
-            num_generations=100,
+            num_generations=kwargs["num_generations"],
             w11=kwargs["wAA"],
             w12=kwargs["wAa"],
             w22=kwargs["waa"],
