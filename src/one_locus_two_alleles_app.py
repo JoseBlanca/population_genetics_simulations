@@ -1,13 +1,14 @@
 import math
 
 import ipywidgets as widget
-from IPython.display import display, clear_output
+from IPython.display import clear_output
 from matplotlib import pyplot as plt
 
 from one_locus_two_alleles_simulations import (
     simulate_one_locus_two_alleles_one_pop,
     INF,
 )
+from plot import GENTOTYPIC_FREQS_LABELS, COLORS
 
 
 class OneLociTwoAllelesSimulationApp(widget.VBox):
@@ -32,21 +33,70 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         self.children = children_widgets
 
         self.run_button.on_click(self.update)
-        self.update()
+        self.show_initial_values()
+
+    def _plot_initial_values(
+        self, allelic_freq_axes, genotypic_freqs_axes, genotypic_freqs, add_label=False
+    ):
+
+        geno_labels = GENTOTYPIC_FREQS_LABELS
+
+        freq_A = genotypic_freqs["freq_AA"] + 0.5 * genotypic_freqs["freq_Aa"]
+        allelic_freq_axes.plot([1], [freq_A], marker="o", color=COLORS["freq_A"])
+
+        for freq_type in ["freq_AA", "freq_Aa", "freq_aa"]:
+            kwargs = {"marker": "o", "color": COLORS[freq_type]}
+            if add_label:
+                kwargs["label"] = geno_labels[freq_type]
+            genotypic_freqs_axes.plot([1], [genotypic_freqs[freq_type]], **kwargs)
+
+    def show_initial_values(self):
+
+        widget.interaction.show_inline_matplotlib_plots()
+        with self.output:
+            clear_output(wait=True)
+            _, axess = self._get_matplotlib_axess()
+
+            allelic_freq_axes = axess[0]
+            genotypic_freqs_axes = axess[1]
+            sim_params = self._get_ui_simulation_parameters()
+            sim_params = self._get_simulation_parameters(**sim_params)
+
+            self._plot_initial_values(
+                axess[0],
+                axess[1],
+                genotypic_freqs={
+                    "freq_AA": sim_params["freq_AA"],
+                    "freq_Aa": sim_params["freq_Aa"],
+                    "freq_aa": sim_params["freq_aa"],
+                },
+                add_label=True,
+            )
+
+            genotypic_freqs_axes.legend()
+            self._set_xy_plot_lims(
+                allelic_freq_axes,
+                genotypic_freqs_axes,
+                sim_params["num_generations"],
+            )
+
+            widget.interaction.show_inline_matplotlib_plots()
+
+    def _set_xy_plot_lims(
+        self, allelic_freq_axes, genotypic_freqs_axes, num_generations
+    ):
+        allelic_freq_axes.set_ylim((0, 1))
+        genotypic_freqs_axes.set_ylim((0, 1))
+        genotypic_freqs_axes.set_xlim((1, num_generations))
 
     def update(self, *_):
         widget.interaction.show_inline_matplotlib_plots()
         with self.output:
             if self.clear_output:
                 clear_output(wait=True)
-            # for widget in self.kwargs_widgets:
-            #    value = widget.get_interact_value()
-            #    self.kwargs[widget._kwarg] = value
-            kwargs = self.prepare_update_kwargs()
+            kwargs = self._get_ui_simulation_parameters()
             self.result = self.generate_simulation_plot(**kwargs)
             widget.interaction.show_inline_matplotlib_plots()
-            # if self.auto_display and self.result is not None:
-            #    display(self.result)
 
     def setup_ui(self, children_widgets):
         box_border_style = "solid 1px #cccccc"
@@ -106,6 +156,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
 
         label = widget.Label("Num. generations")
         self.num_generations_slider = widget.IntSlider(min=10, max=1000, value=100)
+        self.num_generations_slider.observe(self.update_freq_sliders)
         num_generations_box = widget.HBox(
             [label, self.num_generations_slider],
             layout=widget.Layout(border=box_border_style),
@@ -192,7 +243,9 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
         self.freq_Aa_slider.value = freq_Aa
         self.freq_aa_slider.value = freq_aa
 
-    def prepare_update_kwargs(self):
+        self.show_initial_values()
+
+    def _get_ui_simulation_parameters(self):
         kwargs = {}
         kwargs["freq_AA"] = self.freq_AA_slider.value
         kwargs["freq_Aa"] = self.freq_Aa_slider.value
@@ -229,12 +282,12 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
 
         return kwargs
 
-    def generate_simulation_plot(self, **kwargs):
+    def _get_matplotlib_axess(self):
         fig, axess = plt.subplots(nrows=2, sharex=True, figsize=(8, 8))
+        return fig, axess
 
+    def _get_simulation_parameters(self, **kwargs):
         sim_kwargs = {}
-        sim_kwargs["allelic_freq_axes"] = axess[0]
-        sim_kwargs["genotypic_freqs_axes"] = axess[1]
         sim_kwargs["freq_AA"] = kwargs["freq_AA"]
         sim_kwargs["freq_Aa"] = kwargs["freq_Aa"]
         sim_kwargs["freq_aa"] = kwargs["freq_aa"]
@@ -249,5 +302,26 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             sim_kwargs["a2A"] = kwargs["mut_a2A"]
         if self.allow_selfing:
             sim_kwargs["selfing_rate"] = kwargs["selfing_rate"]
+        return sim_kwargs
+
+    def generate_simulation_plot(self, **kwargs):
+        _, axess = self._get_matplotlib_axess()
+
+        sim_kwargs = {}
+        sim_kwargs["allelic_freq_axes"] = axess[0]
+        sim_kwargs["genotypic_freqs_axes"] = axess[1]
+        for key, value in self._get_simulation_parameters(**kwargs).items():
+            sim_kwargs[key] = value
+
+        self._plot_initial_values(
+            axess[0],
+            axess[1],
+            genotypic_freqs={
+                "freq_AA": sim_kwargs["freq_AA"],
+                "freq_Aa": sim_kwargs["freq_Aa"],
+                "freq_aa": sim_kwargs["freq_aa"],
+            },
+        )
 
         simulate_one_locus_two_alleles_one_pop(**sim_kwargs)
+        self._set_xy_plot_lims(axess[0], axess[1], sim_kwargs["num_generations"])
