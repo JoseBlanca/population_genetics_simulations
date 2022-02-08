@@ -3,4 +3,4 @@ matplotlib
 jupyterlab
 ipywidgets
 seaborn
-plotly
+msprime
