@@ -9,3 +9,4 @@ dependencies:
     - ipywidgets
     - seaborn
     - msprime
+    - scikit-allel

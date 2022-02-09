@@ -4,3 +4,4 @@ jupyterlab
 ipywidgets
 seaborn
 msprime
+scikit-allel

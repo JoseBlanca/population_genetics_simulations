@@ -16,10 +16,11 @@ class AFS:
 
 
 class SeveralPopsSimulationResult:
-    def __init__(self, tree_seqs, sampling_times, demography):
+    def __init__(self, tree_seqs, sampling_times, demography, ploidy):
         self.tree_seqs = tree_seqs
         self.sampling_times = sampling_times
         self.demography = demography
+        self.ploidy = ploidy
 
     def _get_samples(self, sampling_time=None, pop_names=None):
         tree_seqs = self.tree_seqs
@@ -126,10 +127,6 @@ class SeveralPopsSimulationResult:
         return afss
 
     def get_genotypes(self, sampling_time=None, pop_names=None):
-        """Loci will be in rows and samples in columns
-
-        Returns an m x n numpy array of the genotypes, where m is the number of sites
-        and n the number of samples."""
         samples = self._get_samples(sampling_time=sampling_time, pop_names=pop_names)
         node_idxs = []
         pops = []
@@ -143,7 +140,9 @@ class SeveralPopsSimulationResult:
 
         genotypes = self.tree_seqs.genotype_matrix()
         genotypes = genotypes[:, node_idxs]
-        genotypes = Genotypes(genotypes, classification=pops)
+        genotypes = Genotypes.from_tree_seq_genotypes(
+            genotypes, classification=pops, ploidy=self.ploidy
+        )
         return genotypes
 
 
@@ -154,6 +153,7 @@ def simulate(
     recomb_rate=1e-8,
     add_mutations=True,
     random_seed=None,
+    ploidy=2,
 ):
     tree_seqs = msprime.sim_ancestry(
         samples=sample_sets,
@@ -168,5 +168,8 @@ def simulate(
     sampling_times = sorted({sample_set.time for sample_set in sample_sets})
 
     return SeveralPopsSimulationResult(
-        tree_seqs=tree_seqs, sampling_times=sampling_times, demography=demography
+        tree_seqs=tree_seqs,
+        sampling_times=sampling_times,
+        demography=demography,
+        ploidy=ploidy,
     )

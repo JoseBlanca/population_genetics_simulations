@@ -47,20 +47,27 @@ def simulate_drifting_pops(
         recomb_rate=recomb_rate,
         random_seed=random_seed,
         add_mutations=add_mutations,
+        ploidy=ploidy,
     )
 
 
 if __name__ == "__main__":
     num_indis_to_sample_per_pop = 20
-    num_generations_ago_when_split_happened = 5000
-    ancestral_pop_size = 1_000_000
-    seq_length_in_bp = 5000
+    num_generations_ago_when_split_happened = 2000
+    ancestral_pop_size = 10000
+    seq_length_in_bp = 500000
     drifting_pops_sizes = {
         "pop1": ancestral_pop_size,
         "pop2": ancestral_pop_size,
-        "pop3": ancestral_pop_size / 1000,
+        "pop3": ancestral_pop_size / 10,
     }
-    sampling_times = [num_generations_ago_when_split_happened - 1, 0]
+    sampling_times = [
+        num_generations_ago_when_split_happened - 1,
+        1500,
+        1000,
+        500,
+        0,
+    ]
     res = simulate_drifting_pops(
         num_indis_to_sample_per_pop=num_indis_to_sample_per_pop,
         drifting_pops_sizes=drifting_pops_sizes,
@@ -69,6 +76,9 @@ if __name__ == "__main__":
         seq_length_in_bp=seq_length_in_bp,
         sampling_times=sampling_times,
     )
+
+    import pca
+
     for sampling_time in sampling_times:
         print(f"{sampling_time=}")
         print(res.calculate_nucleotide_diversities_per_pop(sampling_time=sampling_time))
@@ -86,4 +96,13 @@ if __name__ == "__main__":
                 "pop1"
             ].num_loci_for_each_allele_freq
         )
-        print(res.get_genotypes(sampling_time=sampling_time))
+        genotypes = res.get_genotypes(sampling_time=sampling_time).keep_only_biallelic()
+        pca_res = pca.do_pca(genotypes)
+
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure()
+        axes = fig.add_subplot()
+        pca.plot_pca_result(pca_res, axes, classification=genotypes.classification)
+        plot_path = f"/home/jose/tmp/pca_time_{sampling_time}.svg"
+        fig.savefig(plot_path)
