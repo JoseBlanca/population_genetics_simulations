@@ -97,6 +97,7 @@ if __name__ == "__main__":
             ].num_loci_for_each_allele_freq
         )
         genotypes = res.get_genotypes(sampling_time=sampling_time).keep_only_biallelic()
+        print(genotypes.mean_num_alleles_per_variant)
         pca_res = pca.do_pca(genotypes)
 
         import matplotlib.pyplot as plt

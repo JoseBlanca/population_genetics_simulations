@@ -1,6 +1,8 @@
 import numpy
+import pandas
 
 from matplotlib import pyplot as plt
+import seaborn
 
 import ipywidgets as widget
 from IPython.display import clear_output
@@ -131,8 +133,23 @@ class ThreePopDriftSimulationApp(widget.VBox):
         return fig, axess
 
     def generate_simulation_plots(self, sim_res, sampling_times):
-        _, axess = self._get_matplotlib_axess()
 
+        nucleotide_diversities = {}
+        for sampling_time in reversed(sampling_times):
+            nucleotide_diversities[
+                sampling_time
+            ] = sim_res.calculate_nucleotide_diversities_per_pop(
+                sampling_time=sampling_time
+            )
+        nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
+        nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
+        fig, axes = plt.subplots()
+        seaborn.lineplot(data=nucleotide_diversities, ax=axes)
+        axes.set_ylabel("Nucleotide diversity")
+        axes.set_xlabel("Num. generations ago")
+        axes.set_ylim((0, axes.get_ylim()[1]))
+
+        _, axess = self._get_matplotlib_axess()
         for idx, sampling_time in enumerate(reversed(sampling_times)):
             genotypes = sim_res.get_genotypes(
                 sampling_time=sampling_time
