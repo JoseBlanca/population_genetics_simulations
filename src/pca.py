@@ -13,8 +13,9 @@ def do_pca(
     if ld_pruning_params is None:
         ld_pruning_params = {}
 
+    num_variants_before_ld_pruning = genotypes.num_variants
     genotypes = genotypes.ld_prune(**ld_pruning_params)
-    num_variants = genotypes.num_variants
+    num_variants_after_ld_pruning = genotypes.num_variants
     genotypes = genotypes.to_genotype_012_matrix()
 
     if use_randomized_pca_optimization:
@@ -33,7 +34,8 @@ def do_pca(
     return {
         "projections": projections,
         "explained_variances": explained_variances,
-        "num_variants_used_after_ld_pruning": num_variants,
+        "num_variants_after_ld_pruning": num_variants_after_ld_pruning,
+        "num_variants_before_ld_pruning": num_variants_before_ld_pruning,
     }
 
 

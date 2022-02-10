@@ -1,0 +1,1 @@
+add all pop params to the figure to have them available for the student

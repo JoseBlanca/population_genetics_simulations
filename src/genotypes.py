@@ -70,13 +70,13 @@ class Genotypes:
 
     def ld_prune(self, window_size=100, step=20, threshold=0.1, n_iter=1):
         genotypes = self.to_genotype_012_matrix()
-        for i in range(n_iter):
+        for idx in range(n_iter):
             loc_unlinked = allel.locate_unlinked(
                 genotypes, size=window_size, step=step, threshold=threshold
             )
             n = numpy.count_nonzero(loc_unlinked)
             n_remove = genotypes.shape[0] - n
-            print("iteration", i + 1, "retaining", n, "removing", n_remove, "variants")
+            # print("iteration", i + 1, "retaining", n, "removing", n_remove, "variants")
         genotypes = self.genotypes.compress(loc_unlinked, axis=0)
         return self.__class__(genotypes=genotypes, classification=self.classification)
 

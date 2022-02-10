@@ -1,5 +1,4 @@
 import math
-from multiprocessing.sharedctypes import Value
 
 import ipywidgets as widget
 from IPython.display import clear_output
