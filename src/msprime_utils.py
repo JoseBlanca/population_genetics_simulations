@@ -163,7 +163,7 @@ def simulate(
         random_seed=random_seed,
     )
     if add_mutations:
-        tree_seqs = msprime.sim_mutations(tree_seqs, rate=1e-8, random_seed=54321)
+        tree_seqs = msprime.sim_mutations(tree_seqs, rate=1e-8, random_seed=random_seed)
 
     sampling_times = sorted({sample_set.time for sample_set in sample_sets})
 

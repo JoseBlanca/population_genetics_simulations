@@ -15,7 +15,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
     def __init__(
         self,
         min_pop_size=100,
-        max_pop_size=50_000,
+        max_pop_size=100_000,
         default_pop_size=10_000,
         min_num_generations_since_split=100,
         max_num_generations_since_split=10000,
@@ -71,7 +71,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
         )
         self.pop3_size_slider = widget.IntSlider(
             min=self.min_pop_size,
-            max=self.max_pop_size,
+            max=int(self.max_pop_size / 5),
             value=self.default_pop_size,
             description="Size pop 3",
         )
@@ -91,7 +91,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
             max=self.max_num_generations_since_split,
             value=self.default_num_generations_since_split,
         )
-        label = widget.Label(value="Num. generations since splite")
+        label = widget.Label(value="Num. generations since split")
         generations_box = widget.HBox(
             [label, self.num_generations_since_split_slider],
             layout=widget.Layout(border=box_border_style),
@@ -126,12 +126,6 @@ class ThreePopDriftSimulationApp(widget.VBox):
         kwargs["sampling_times"] = sampling_times
         return kwargs
 
-    def _get_matplotlib_axess(self):
-        fig, axess = plt.subplots(
-            nrows=self.num_time_intervals_to_sample, figsize=(8, 20)
-        )
-        return fig, axess
-
     def generate_simulation_plots(self, sim_res, sampling_times):
 
         nucleotide_diversities = {}
@@ -143,13 +137,21 @@ class ThreePopDriftSimulationApp(widget.VBox):
             )
         nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
         nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
-        fig, axes = plt.subplots()
+        fig, axess = plt.subplots(
+            nrows=2 + self.num_time_intervals_to_sample, figsize=(8, 30)
+        )
+        axes = axess[0]
         seaborn.lineplot(data=nucleotide_diversities, ax=axes)
         axes.set_ylabel("Nucleotide diversity")
         axes.set_xlabel("Num. generations ago")
         axes.set_ylim((0, axes.get_ylim()[1]))
 
-        _, axess = self._get_matplotlib_axess()
+        fsts = sim_res.calculate_fsts(sampling_time=0)
+        axes = axess[1]
+        seaborn.heatmap(fsts, annot=True, ax=axes)
+        axes.set_title("Pairwise Fsts")
+
+        axess = axess[2:]
         for idx, sampling_time in enumerate(reversed(sampling_times)):
             genotypes = sim_res.get_genotypes(
                 sampling_time=sampling_time
@@ -159,11 +161,14 @@ class ThreePopDriftSimulationApp(widget.VBox):
             sampling_time_str = (
                 f"{sampling_time} generations ago" if sampling_time > 0 else "Now"
             )
-            print(f"PCA process ({sampling_time_str})")
-            print(f'Num. input variants: {pca_res["num_variants_before_ld_pruning"]}')
-            print(
-                f'Num. variants after LD pruning: {pca_res["num_variants_after_ld_pruning"]}'
-            )
+            if False:
+                print(f"PCA process ({sampling_time_str})")
+                print(
+                    f'Num. input variants: {pca_res["num_variants_before_ld_pruning"]}'
+                )
+                print(
+                    f'Num. variants after LD pruning: {pca_res["num_variants_after_ld_pruning"]}'
+                )
 
             axes = axess[idx]
             axes.set_title(sampling_time_str)
