@@ -1,1 +1,4 @@
+
+In the drift section add a practice with a bottleneck (Bottleneck) and another with a population that goes away (Founder effect)
+
 add all pop params to the figure to have them available for the student

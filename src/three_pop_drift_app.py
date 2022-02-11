@@ -7,6 +7,8 @@ import seaborn
 import ipywidgets as widget
 from IPython.display import clear_output
 
+import demesdraw
+
 import drifting_pops_sim
 import pca
 
@@ -138,20 +140,23 @@ class ThreePopDriftSimulationApp(widget.VBox):
         nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
         nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
         fig, axess = plt.subplots(
-            nrows=2 + self.num_time_intervals_to_sample, figsize=(8, 30)
+            nrows=3 + self.num_time_intervals_to_sample, figsize=(8, 35)
         )
         axes = axess[0]
+        demesdraw.tubes(sim_res.demography.to_demes(), ax=axes)
+
+        axes = axess[1]
         seaborn.lineplot(data=nucleotide_diversities, ax=axes)
         axes.set_ylabel("Nucleotide diversity")
         axes.set_xlabel("Num. generations ago")
         axes.set_ylim((0, axes.get_ylim()[1]))
 
         fsts = sim_res.calculate_fsts(sampling_time=0)
-        axes = axess[1]
+        axes = axess[2]
         seaborn.heatmap(fsts, annot=True, ax=axes)
         axes.set_title("Pairwise Fsts")
 
-        axess = axess[2:]
+        axess = axess[3:]
         for idx, sampling_time in enumerate(reversed(sampling_times)):
             genotypes = sim_res.get_genotypes(
                 sampling_time=sampling_time

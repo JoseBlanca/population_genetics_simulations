@@ -10,3 +10,4 @@ dependencies:
     - seaborn
     - msprime
     - scikit-allel
+    - demesdraw
