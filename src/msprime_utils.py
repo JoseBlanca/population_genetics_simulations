@@ -22,7 +22,35 @@ class SeveralPopsSimulationResult:
         self.demography = demography
         self.ploidy = ploidy
 
-    def _get_samples(self, sampling_time=None, pop_names=None):
+    def _get_samples(self, sampling_times=None, pop_names=None):
+        if sampling_times is None and pop_names is None:
+            return self._get_samples_for_pops(
+                sampling_time=sampling_times, pop_names=pop_names
+            )
+
+        if sampling_times is None:
+            sampling_times = [None]
+        elif isinstance(sampling_times, (int, float)):
+            sampling_times = [sampling_times]
+        if pop_names is not None:
+            pop_names = list(pop_names)
+
+        if len(sampling_times) == 1:
+            return self._get_samples_for_pops(
+                sampling_time=sampling_times[0], pop_names=pop_names
+            )
+        elif pop_names is None or len(pop_names) == 1:
+            if pop_names is None:
+                pop_name = pop_names
+            else:
+                pop_name = pop_names[0]
+            return self._get_samples_for_times(
+                sampling_times=sampling_times, pop_name=pop_name
+            )
+        else:
+            raise NotImplementedError("Fixme")
+
+    def _get_pop_ids_and_names(self):
         tree_seqs = self.tree_seqs
 
         pop_ids_by_pop_name_in_tseq = {}
@@ -32,11 +60,50 @@ class SeveralPopsSimulationResult:
             pop_id = pop.id
             pop_ids_by_pop_name_in_tseq[pop_name] = pop_id
             pop_names_by_pop_id_in_tseq[pop_id] = pop_name
+        return pop_ids_by_pop_name_in_tseq, pop_names_by_pop_id_in_tseq
 
-        if pop_names:
-            pop_ids = [pop_ids_by_pop_name_in_tseq[pop_name] for pop_name in pop_names]
+    def _get_samples_for_times(self, sampling_times, pop_name=None):
+        res = self._get_pop_ids_and_names()
+        pop_ids_by_pop_name_in_tseq, _ = res
+
+        if pop_name is None:
+            if len(pop_ids_by_pop_name_in_tseq) == 1:
+                pop_id = list(pop_ids_by_pop_name_in_tseq.values())[0]
+            else:
+                msg = "You have more than one pop, so you have to set one pop"
+                raise ValueError(msg)
         else:
-            pop_ids = sorted(pop_ids_by_pop_name_in_tseq.values())
+            pop_id = pop_ids_by_pop_name_in_tseq[pop_name]
+
+        for sampling_time in sampling_times:
+            if sampling_time not in self.sampling_times:
+                msg = f"Sampling time ({sampling_time}) not in available sampling times ({self.sampling_times})"
+                raise ValueError(msg)
+
+        tree_seqs = self.tree_seqs
+
+        samples = []
+        for sampling_time in sampling_times:
+            sample = {
+                "sample_node_ids": tree_seqs.samples(
+                    population=pop_id, time=sampling_time
+                ),
+                "sampling_time": sampling_time,
+                "pop_name": pop_name,
+                "sample_name": f"{pop_name}_{sampling_time}",
+            }
+            if sample["sample_node_ids"].size == 0:
+                continue
+            samples.append(sample)
+        return samples
+
+    def _get_samples_for_pops(self, sampling_time=None, pop_names=None):
+
+        res = self._get_pop_ids_and_names()
+        pop_ids_by_pop_name_in_tseq, pop_names_by_pop_id_in_tseq = res
+
+        if pop_names is None:
+            pop_names = list(sorted(pop_ids_by_pop_name_in_tseq.keys()))
 
         if sampling_time is None:
             if len(self.sampling_times) == 1:
@@ -48,36 +115,45 @@ class SeveralPopsSimulationResult:
             msg = f"Sampling time ({sampling_time}) not in available sampling times ({self.sampling_times})"
             raise ValueError(msg)
 
+        if pop_names:
+            pop_ids = [pop_ids_by_pop_name_in_tseq[pop_name] for pop_name in pop_names]
+        else:
+            pop_ids = sorted(pop_ids_by_pop_name_in_tseq.values())
+
+        tree_seqs = self.tree_seqs
+
         samples = []
         for pop_id in pop_ids:
+            pop_name = (pop_names_by_pop_id_in_tseq[pop_id],)
             sample = {
                 "sample_node_ids": tree_seqs.samples(
                     population=pop_id, time=sampling_time
                 ),
                 "sampling_time": sampling_time,
-                "pop_name": pop_names_by_pop_id_in_tseq[pop_id],
+                "pop_name": pop_name,
+                "sample_name": pop_name,
             }
             if sample["sample_node_ids"].size == 0:
                 continue
             samples.append(sample)
         return samples
 
-    def _get_sample_sets_and_pop_names_from_samples(self, samples):
+    def _get_sample_sets_and_sample_names_from_samples(self, samples):
         sample_sets = []
         pop_names = []
         for sample in samples:
             sample_sets.append(sample["sample_node_ids"])
-            pop_names.append(sample["pop_name"])
+            pop_names.append(sample["sample_name"])
         return sample_sets, pop_names
 
-    def calculate_nucleotide_diversities_per_pop(
-        self, sampling_time=None, pop_names=None
+    def calculate_nucleotide_diversities_per_sample(
+        self, sampling_times=None, pop_names=None
     ):
         """Computes mean genetic diversity (also known as “pi”),
 
         a common citation for the definition is Nei and Li (1979) (equation 22)"""
-        samples = self._get_samples(sampling_time=sampling_time, pop_names=pop_names)
-        sample_sets, pop_names = self._get_sample_sets_and_pop_names_from_samples(
+        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
+        sample_sets, pop_names = self._get_sample_sets_and_sample_names_from_samples(
             samples
         )
 
@@ -94,9 +170,9 @@ class SeveralPopsSimulationResult:
             raise RuntimeError("Only one pop, no pairwise comparison posible")
         return list(itertools.combinations(list(range(num_pops)), 2))
 
-    def calculate_fsts(self, sampling_time=None, pop_names=None):
-        samples = self._get_samples(sampling_time=sampling_time, pop_names=pop_names)
-        sample_sets, pop_names = self._get_sample_sets_and_pop_names_from_samples(
+    def calculate_fsts(self, sampling_times=None, pop_names=None):
+        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
+        sample_sets, pop_names = self._get_sample_sets_and_sample_names_from_samples(
             samples
         )
 
@@ -111,8 +187,8 @@ class SeveralPopsSimulationResult:
         fst_matrix = pandas.DataFrame(fst_matrix, index=pop_names, columns=pop_names)
         return fst_matrix
 
-    def calculate_allele_frequency_spectrum(self, sampling_time=None, pop_names=None):
-        samples = self._get_samples(sampling_time=sampling_time, pop_names=pop_names)
+    def calculate_allele_frequency_spectrum(self, sampling_times=None, pop_names=None):
+        samples = self._get_samples(sampling_time=sampling_times, pop_names=pop_names)
 
         afss = {}
         for sample in samples:
@@ -123,17 +199,17 @@ class SeveralPopsSimulationResult:
             )[1:-1]
             num_chroms = afs_counts.size + 1
             allele_freqs = numpy.arange(1, num_chroms) / (num_chroms)
-            afss[sample["pop_name"]] = AFS(afs_counts, allele_freqs, num_chroms)
+            afss[sample["sample_name"]] = AFS(afs_counts, allele_freqs, num_chroms)
         return afss
 
-    def get_genotypes(self, sampling_time=None, pop_names=None):
-        samples = self._get_samples(sampling_time=sampling_time, pop_names=pop_names)
+    def get_genotypes(self, sampling_times=None, pop_names=None):
+        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
         node_idxs = []
         pops = []
         for sample in samples:
             node_idxs_for_these_samples = sample["sample_node_ids"]
             pops_for_this_sample = [
-                sample["pop_name"]
+                sample["sample_name"]
             ] * node_idxs_for_these_samples.size
             node_idxs.extend(node_idxs_for_these_samples)
             pops.extend(pops_for_this_sample)
@@ -153,6 +229,7 @@ def simulate(
     recomb_rate=1e-8,
     add_mutations=True,
     random_seed=None,
+    mutation_rate=1e-8,
     ploidy=2,
 ):
     tree_seqs = msprime.sim_ancestry(
@@ -163,7 +240,9 @@ def simulate(
         random_seed=random_seed,
     )
     if add_mutations:
-        tree_seqs = msprime.sim_mutations(tree_seqs, rate=1e-8, random_seed=random_seed)
+        tree_seqs = msprime.sim_mutations(
+            tree_seqs, rate=mutation_rate, random_seed=random_seed
+        )
 
     sampling_times = sorted({sample_set.time for sample_set in sample_sets})
 
