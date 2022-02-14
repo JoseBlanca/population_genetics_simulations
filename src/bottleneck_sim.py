@@ -20,34 +20,30 @@ def simulate(
     demography = msprime.Demography()
     demography.add_population(name=pop_name, initial_size=pop_size)
 
-    sample = msprime.SampleSet(
-        num_samples=num_indis_to_sample,
-        population=pop_name,
-        ploidy=ploidy,
-        time=bottleneck_start_time + 1,
-    )
-    samples = [sample]
     demography.add_population_parameters_change(
         time=bottleneck_start_time, initial_size=pop_size_during_bottleneck
     )
     demography.add_population_parameters_change(
         time=bottleneck_end_time, initial_size=pop_size
     )
-    sample = msprime.SampleSet(
-        num_samples=num_indis_to_sample,
-        population=pop_name,
-        ploidy=ploidy,
-        time=bottleneck_end_time - 1,
-    )
-    samples.append(sample)
 
-    sample = msprime.SampleSet(
-        num_samples=num_indis_to_sample,
-        population=pop_name,
-        ploidy=ploidy,
-        time=0,
-    )
-    samples.append(sample)
+    sampling_times = [
+        bottleneck_start_time + 1,
+        bottleneck_start_time - 1,
+        int((bottleneck_end_time + bottleneck_start_time) / 2),
+        bottleneck_end_time + 1,
+        bottleneck_end_time - 1,
+        0,
+    ]
+    samples = []
+    for time in sampling_times:
+        sample = msprime.SampleSet(
+            num_samples=num_indis_to_sample,
+            population=pop_name,
+            ploidy=ploidy,
+            time=time,
+        )
+        samples.append(sample)
 
     sim_result = msprime_utils.simulate(
         sample_sets=samples,
@@ -59,7 +55,5 @@ def simulate(
         mutation_rate=mutation_rate,
         ploidy=ploidy,
     )
-    sampling_times = list(
-        reversed(sorted([bottleneck_start_time + 1, bottleneck_end_time - 1, 0]))
-    )
+    sampling_times = list(reversed(sorted(sampling_times)))
     return {"sim_result": sim_result, "sampling_times": sampling_times}

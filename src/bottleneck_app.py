@@ -23,9 +23,9 @@ class BottleneckApp(widget.VBox):
         max_bottleneck_pop_size=2_000,
         default_bottleneck_pop_size=100,
         min_num_generations_bottleneck=100,
-        max_num_generations_bottleneck=20_000,
+        max_num_generations_bottleneck=2_000,
         default_num_generations_bottleneck=(800, 1000),
-        num_indis_to_sample_per_pop=20,
+        num_indis_to_sample_per_pop=40,
         seq_length_in_bp=500_000,
     ):
 
@@ -123,7 +123,7 @@ class BottleneckApp(widget.VBox):
             )
         nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
         nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
-        fig, axess = plt.subplots(nrows=3 + len(sampling_times), figsize=(8, 32))
+        fig, axess = plt.subplots(nrows=4, figsize=(8, 24))
         axes = axess[0]
         demesdraw.tubes(sim_res.demography.to_demes(), ax=axes)
 
@@ -138,20 +138,18 @@ class BottleneckApp(widget.VBox):
         seaborn.heatmap(fsts, annot=True, ax=axes)
         axes.set_title("Pairwise Fsts")
 
-        axess = axess[3:]
-        for idx, sampling_time in enumerate(reversed(sorted(sampling_times))):
-            genotypes = sim_res.get_genotypes(
-                sampling_times=sampling_times, pop_names=["pop"]
-            ).keep_only_biallelic()
-            pca_res = pca.do_pca(genotypes)
+        sampling_time = 0
+        genotypes = sim_res.get_genotypes(
+            sampling_times=sampling_times, pop_names=["pop"]
+        ).keep_only_biallelic()
+        pca_res = pca.do_pca(genotypes)
 
-            sampling_time_str = (
-                f"{sampling_time} generations ago" if sampling_time > 0 else "Now"
-            )
-
-            axes = axess[idx]
-            axes.set_title(sampling_time_str)
-            pca.plot_pca_result(pca_res, axes, classification=genotypes.classification)
+        sampling_time_str = (
+            f"{sampling_time} generations ago" if sampling_time > 0 else "Now"
+        )
+        axes = axess[3]
+        axes.set_title(sampling_time_str)
+        pca.plot_pca_result(pca_res, axes, classification=genotypes.classification)
 
     def update(self, *_, **__):
 
