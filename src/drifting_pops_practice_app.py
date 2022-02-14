@@ -134,8 +134,8 @@ class ThreePopDriftSimulationApp(widget.VBox):
         for sampling_time in reversed(sampling_times):
             nucleotide_diversities[
                 sampling_time
-            ] = sim_res.calculate_nucleotide_diversities_per_pop(
-                sampling_time=sampling_time
+            ] = sim_res.calculate_nucleotide_diversities_per_sample(
+                sampling_times=[sampling_time]
             )
         nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
         nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
@@ -151,7 +151,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
         axes.set_xlabel("Num. generations ago")
         axes.set_ylim((0, axes.get_ylim()[1]))
 
-        fsts = sim_res.calculate_fsts(sampling_time=0)
+        fsts = sim_res.calculate_fsts(sampling_times=0)
         axes = axess[2]
         seaborn.heatmap(fsts, annot=True, ax=axes)
         axes.set_title("Pairwise Fsts")
@@ -159,7 +159,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
         axess = axess[3:]
         for idx, sampling_time in enumerate(reversed(sampling_times)):
             genotypes = sim_res.get_genotypes(
-                sampling_time=sampling_time
+                sampling_times=[sampling_time]
             ).keep_only_biallelic()
             pca_res = pca.do_pca(genotypes)
 
