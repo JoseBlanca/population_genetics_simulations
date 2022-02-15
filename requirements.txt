@@ -7,3 +7,4 @@ msprime
 scikit-allel
 demesdraw
 jupyter-dash
+jupyterlab-dash

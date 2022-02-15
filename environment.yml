@@ -12,3 +12,4 @@ dependencies:
     - scikit-allel
     - demesdraw
     - jupyter-dash
+    - jupyterlab-dash
