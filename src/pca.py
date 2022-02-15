@@ -21,7 +21,9 @@ def do_pca_from_012_genotypes(
     explained_variances = pandas.Series(explained_variances, index=princom_names)
     explained_variances = explained_variances * 100.0
 
-    projections = pandas.DataFrame(projections, columns=princom_names)
+    projections = pandas.DataFrame(
+        projections, columns=princom_names, index=genotypes.columns
+    )
 
     return {"projections": projections, "explained_variances": explained_variances}
 
