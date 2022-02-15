@@ -11,3 +11,4 @@ dependencies:
     - msprime
     - scikit-allel
     - demesdraw
+    - jupyter-dash

@@ -6,3 +6,4 @@ seaborn
 msprime
 scikit-allel
 demesdraw
+jupyter-dash
