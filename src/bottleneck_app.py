@@ -128,10 +128,17 @@ class BottleneckApp(widget.VBox):
         demesdraw.tubes(sim_res.demography.to_demes(), ax=axes)
 
         axes = axess[1]
-        seaborn.lineplot(data=nucleotide_diversities, ax=axes)
+        seaborn.lineplot(data=nucleotide_diversities, ax=axes, legend=False)
         axes.set_ylabel("Nucleotide diversity")
         axes.set_xlabel("Num. generations ago")
         axes.set_ylim((0, axes.get_ylim()[1]))
+        x0, x1 = axes.get_xlim()
+        x_pos = x0 + abs(x0 - x1) / 3
+        y0, y1 = axes.get_ylim()
+        y_pos = y1 - abs(y0 - y1) / 6
+        axes.text(
+            x_pos, y_pos, f"final diversity: {nucleotide_diversities.iloc[-1,0]:.2e}"
+        )
 
         fsts = sim_res.calculate_fsts(sampling_times=sampling_times, pop_names=["pop"])
         axes = axess[2]
