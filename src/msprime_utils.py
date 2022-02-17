@@ -15,6 +15,13 @@ class AFS:
         self.num_samples = num_samples
 
 
+def add_sample(num_samples: int, ploidy: int, pop_name: str, time: int, samples: dict):
+    sample = msprime.SampleSet(
+        num_samples=num_samples, population=pop_name, ploidy=ploidy, time=time
+    )
+    samples[(pop_name, time)] = sample
+
+
 class SeveralPopsSimulationResult:
     def __init__(self, tree_seqs, sampling_times, demography, ploidy):
         self.tree_seqs = tree_seqs
@@ -22,11 +29,34 @@ class SeveralPopsSimulationResult:
         self.demography = demography
         self.ploidy = ploidy
 
-    def _get_samples(self, sampling_times=None, pop_names=None):
-        if sampling_times is None and pop_names is None:
-            return self._get_samples_for_pops(
-                sampling_time=sampling_times, pop_names=pop_names
-            )
+    def _get_samples_from_sample_info(self, samples_info):
+        samples = []
+        tree_seqs = self.tree_seqs
+        pop_ids_by_pop_name_in_tseq, _ = self._get_pop_ids_and_names()
+        for pop_name, sampling_time in samples_info:
+            pop_id = pop_ids_by_pop_name_in_tseq[pop_name]
+            sample = {
+                "sample_node_ids": tree_seqs.samples(
+                    population=pop_id, time=sampling_time
+                ),
+                "sampling_time": sampling_time,
+                "pop_name": pop_name,
+                "sample_name": f"{pop_name}_{sampling_time}",
+            }
+            if sample["sample_node_ids"].size == 0:
+                continue
+            samples.append(sample)
+        return samples
+
+    def _get_samples(self, sampling_times=None, pop_names=None, samples=None):
+
+        if samples is not None:
+            if sampling_times is not None or pop_names is not None:
+                msg = (
+                    "if samples are given, sampling_times and pop_names should be None"
+                )
+                raise ValueError(msg)
+            return self._get_samples_from_sample_info(samples)
 
         if sampling_times is None:
             sampling_times = [None]
@@ -147,12 +177,16 @@ class SeveralPopsSimulationResult:
         return sample_sets, pop_names
 
     def calculate_nucleotide_diversities_per_sample(
-        self, sampling_times=None, pop_names=None
+        self,
+        sampling_times=None,
+        pop_names=None,
+        samples=None,
     ):
         """Computes mean genetic diversity (also known as “pi”),
 
         a common citation for the definition is Nei and Li (1979) (equation 22)"""
         samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
+        sample_names = [sample["sample_name"] for sample in samples]
         sample_sets, pop_names = self._get_sample_sets_and_sample_names_from_samples(
             samples
         )
@@ -160,13 +194,15 @@ class SeveralPopsSimulationResult:
         diversities = self.tree_seqs.diversity(sample_sets=sample_sets)
         diversities = pandas.Series(
             diversities,
-            index=pop_names,
+            index=sample_names,
         )
         return diversities
 
-    def calculate_poly095_per_sample(self, sampling_times=None, pop_names=None):
+    def calculate_poly095_per_sample(
+        self, sampling_times=None, pop_names=None, samples=None
+    ):
         afss = self.calculate_allele_frequency_spectrum(
-            sampling_times=sampling_times, pop_names=pop_names
+            sampling_times=sampling_times, pop_names=pop_names, samples=samples
         )
         poly_095 = []
         sample_names = list(afss.keys())
@@ -185,8 +221,10 @@ class SeveralPopsSimulationResult:
             raise RuntimeError("Only one pop, no pairwise comparison posible")
         return list(itertools.combinations(list(range(num_pops)), 2))
 
-    def calculate_fsts(self, sampling_times=None, pop_names=None):
-        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
+    def calculate_fsts(self, sampling_times=None, pop_names=None, samples=None):
+        samples = self._get_samples(
+            sampling_times=sampling_times, pop_names=pop_names, samples=samples
+        )
         sample_sets, pop_names = self._get_sample_sets_and_sample_names_from_samples(
             samples
         )
@@ -202,9 +240,12 @@ class SeveralPopsSimulationResult:
         fst_matrix = pandas.DataFrame(fst_matrix, index=pop_names, columns=pop_names)
         return fst_matrix
 
-    def calculate_allele_frequency_spectrum(self, sampling_times=None, pop_names=None):
-        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
-
+    def calculate_allele_frequency_spectrum(
+        self, sampling_times=None, pop_names=None, samples=None
+    ):
+        samples = self._get_samples(
+            sampling_times=sampling_times, pop_names=pop_names, samples=samples
+        )
         afss = {}
         for sample in samples:
             afs_counts = self.tree_seqs.allele_frequency_spectrum(
@@ -217,8 +258,10 @@ class SeveralPopsSimulationResult:
             afss[sample["sample_name"]] = AFS(afs_counts, allele_freqs, num_chroms)
         return afss
 
-    def get_genotypes(self, sampling_times=None, pop_names=None):
-        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
+    def get_genotypes(self, sampling_times=None, pop_names=None, samples=None):
+        samples = self._get_samples(
+            sampling_times=sampling_times, pop_names=pop_names, samples=samples
+        )
         node_idxs = []
         pops = []
         for sample in samples:
