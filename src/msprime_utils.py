@@ -164,6 +164,21 @@ class SeveralPopsSimulationResult:
         )
         return diversities
 
+    def calculate_poly095_per_sample(self, sampling_times=None, pop_names=None):
+        afss = self.calculate_allele_frequency_spectrum(
+            sampling_times=sampling_times, pop_names=pop_names
+        )
+        poly_095 = []
+        sample_names = list(afss.keys())
+        for sample_name in sample_names:
+            afs = afss[sample_name]
+            value = numpy.sum(
+                afs.num_loci_for_each_allele_freq[afs.allele_freqs > (1 - 0.95)]
+            ) / numpy.sum(afs.num_loci_for_each_allele_freq)
+            poly_095.append(value)
+        poly_095 = pandas.Series(poly_095, index=sample_names)
+        return poly_095
+
     def _generate_combination_idxs(self, items):
         num_pops = len(items)
         if num_pops == 1:
@@ -188,7 +203,7 @@ class SeveralPopsSimulationResult:
         return fst_matrix
 
     def calculate_allele_frequency_spectrum(self, sampling_times=None, pop_names=None):
-        samples = self._get_samples(sampling_time=sampling_times, pop_names=pop_names)
+        samples = self._get_samples(sampling_times=sampling_times, pop_names=pop_names)
 
         afss = {}
         for sample in samples:

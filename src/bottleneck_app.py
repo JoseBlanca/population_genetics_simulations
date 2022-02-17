@@ -25,7 +25,7 @@ class BottleneckApp(widget.VBox):
         min_num_generations_bottleneck=100,
         max_num_generations_bottleneck=2_000,
         default_num_generations_bottleneck=(800, 1000),
-        num_indis_to_sample_per_pop=40,
+        num_indis_to_sample_per_pop=50,
         seq_length_in_bp=500_000,
     ):
 
@@ -114,16 +114,16 @@ class BottleneckApp(widget.VBox):
 
     def generate_simulation_plots(self, sim_res, sampling_times):
 
-        nucleotide_diversities = {}
-        for sampling_time in reversed(sorted(sampling_times)):
-            nucleotide_diversities[
-                sampling_time
-            ] = sim_res.calculate_nucleotide_diversities_per_sample(
-                sampling_times=[sampling_time]
-            )
-        nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
-        nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
-        fig, axess = plt.subplots(nrows=4, figsize=(8, 24))
+        sampling_times = list(reversed(sorted(sampling_times)))
+        nucleotide_diversities = sim_res.calculate_nucleotide_diversities_per_sample(
+            sampling_times=sampling_times
+        )
+        nucleotide_diversities.index = -numpy.array(sampling_times)
+
+        poly_095 = sim_res.calculate_poly095_per_sample(sampling_times=sampling_times)
+        poly_095.index = -numpy.array(sampling_times)
+
+        fig, axess = plt.subplots(nrows=5, figsize=(8, 32))
         axes = axess[0]
         demesdraw.tubes(sim_res.demography.to_demes(), ax=axes)
 
@@ -137,11 +137,16 @@ class BottleneckApp(widget.VBox):
         y0, y1 = axes.get_ylim()
         y_pos = y1 - abs(y0 - y1) / 6
         axes.text(
-            x_pos, y_pos, f"final diversity: {nucleotide_diversities.iloc[-1,0]:.2e}"
+            x_pos, y_pos, f"final diversity: {nucleotide_diversities.iloc[-1]:.2e}"
         )
 
-        fsts = sim_res.calculate_fsts(sampling_times=sampling_times, pop_names=["pop"])
         axes = axess[2]
+        seaborn.lineplot(data=poly_095 * 100, ax=axes, legend=False)
+        axes.set_ylabel("% polymorphic markers (95%)")
+        axes.set_xlabel("Num. generations ago")
+
+        fsts = sim_res.calculate_fsts(sampling_times=sampling_times, pop_names=["pop"])
+        axes = axess[3]
         seaborn.heatmap(fsts, annot=True, ax=axes)
         axes.set_title("Pairwise Fsts")
 
@@ -154,7 +159,7 @@ class BottleneckApp(widget.VBox):
         sampling_time_str = (
             f"{sampling_time} generations ago" if sampling_time > 0 else "Now"
         )
-        axes = axess[3]
+        axes = axess[4]
         axes.set_title(sampling_time_str)
         pca.plot_pca_result(pca_res, axes, classification=genotypes.classification)
 
@@ -169,3 +174,8 @@ class BottleneckApp(widget.VBox):
 
             self.result = self.generate_simulation_plots(sim_res, res["sampling_times"])
             widget.interaction.show_inline_matplotlib_plots()
+
+
+# LD
+# number of variants
+# SFS

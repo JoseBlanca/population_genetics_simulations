@@ -57,3 +57,28 @@ def simulate(
     )
     sampling_times = list(reversed(sorted(sampling_times)))
     return {"sim_result": sim_result, "sampling_times": sampling_times}
+
+
+if __name__ == "__main__":
+    res = simulate(
+        num_indis_to_sample=40,
+        pop_size=1_000_000,
+        pop_size_during_bottleneck=50,
+        bottleneck_start_time=80,
+        bottleneck_end_time=100,
+        seq_length_in_bp=100_000,
+    )
+    sim_result = res["sim_result"]
+    print(res["sampling_times"])
+    print(sim_result.calculate_poly095_per_sample(sampling_times=res["sampling_times"]))
+    assert False
+
+    genotypes = sim_result.get_genotypes(sampling_times=[101], pop_names=None)
+    print(genotypes.keep_only_biallelic().poly095)
+    # print(genotypes.keep_only_biallelic().folded_sfs)
+    genotypes = sim_result.get_genotypes(sampling_times=[79], pop_names=None)
+    print(genotypes.keep_only_biallelic().poly095)
+    # print(genotypes.keep_only_biallelic().folded_sfs)
+    genotypes = sim_result.get_genotypes(sampling_times=[0], pop_names=None)
+    # print(genotypes.keep_only_biallelic().folded_sfs)
+    print(genotypes.keep_only_biallelic().poly095)

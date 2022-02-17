@@ -74,11 +74,25 @@ class Genotypes:
             loc_unlinked = allel.locate_unlinked(
                 genotypes, size=window_size, step=step, threshold=threshold
             )
-            n = numpy.count_nonzero(loc_unlinked)
-            n_remove = genotypes.shape[0] - n
+            # n = numpy.count_nonzero(loc_unlinked)
+            # n_remove = genotypes.shape[0] - n
             # print("iteration", i + 1, "retaining", n, "removing", n_remove, "variants")
         genotypes = self.genotypes.compress(loc_unlinked, axis=0)
         return self.__class__(genotypes=genotypes, classification=self.classification)
+
+    @property
+    def folded_sfs(self):
+        sfs = allel.sfs_folded(self.genotypes.count_alleles())
+        minor_allele_count = numpy.arange(stop=sfs.size)
+        freqs = minor_allele_count / (numpy.max(minor_allele_count) * 2)
+        sfs = pandas.Series(sfs, index=freqs)
+        return sfs
+
+    @property
+    def poly095(self):
+        sfs = self.folded_sfs
+        freqs = sfs.index.to_frame(index=False).values.flatten()
+        return numpy.sum(sfs[freqs > (1 - 0.95)]) / numpy.sum(sfs)
 
 
 def calc_ld_rogers_huff_r(genotype_012_matrix):
