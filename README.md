@@ -10,6 +10,7 @@ Practices implemented:
  - [Genetic drift](src/genetic_drift_practice.ipynb)
  - [Three drifting populations](src/drifting_pops_practice.ipynb)
  - [Bottleneck](src/bottleneck_practice.ipynb)
+ - [Founder effect](src/founder_effect_practice.ipynb)
  
  ## How to run the code
 
