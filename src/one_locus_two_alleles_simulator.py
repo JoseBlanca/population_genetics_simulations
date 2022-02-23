@@ -403,12 +403,12 @@ if __name__ == "__main__":
 
     pop1 = Population(
         id="pop1",
-        # size=100,
-        size=INF,
-        genotypic_freqs=GenotypicFreqs(1, 0, 0),
-        fitness=Fitness(w11=0.1, w12=0.1, w22=1),
-        # mut_rates=MutRates(a2A=0.01, A2a=0.01),
-        selfing_coeff=0,
+        size=1000,
+        # size=INF,
+        genotypic_freqs=GenotypicFreqs(0, 0, 1),
+        # fitness=Fitness(w11=0.1, w12=0.1, w22=1),
+        mut_rates=MutRates(a2A=0.001, A2a=0),
+        # selfing_rate=0,
     )
     pop2 = Population(
         id="pop2",
@@ -417,7 +417,7 @@ if __name__ == "__main__":
         genotypic_freqs=GenotypicFreqs(0, 0, 1),
         # fitness=Fitness(w11=1, w12=1, w22=0.1),
         # mut_rates=MutRates(a2A=0.01, A2a=0.01),
-        selfing_coeff=0,
+        # selfing_rate=0,
     )
     pop_size_change = {
         "type": "size_change",
@@ -458,10 +458,15 @@ if __name__ == "__main__":
     simulate(
         pops=[pop1, pop2],
         num_generations=20,
-        demographic_events=demographic_events,
-        random_seed=42,
+        # demographic_events=demographic_events,
+        # random_seed=42,
         loggers=[allelic_freqs_logger, pop_size_logger, genotypic_freqs_logger],
     )
 
-    plot_freqs("../temp_pop1.png", allelic_freqs_logger, genotypic_freqs_logger, "pop1")
-    plot_freqs("../temp_pop2.png", allelic_freqs_logger, genotypic_freqs_logger, "pop2")
+    plot_freqs(
+        "/home/jose/tmp/temp_pop1.png",
+        allelic_freqs_logger,
+        genotypic_freqs_logger,
+        "pop1",
+    )
+    # plot_freqs("../temp_pop2.png", allelic_freqs_logger, genotypic_freqs_logger, "pop2")
