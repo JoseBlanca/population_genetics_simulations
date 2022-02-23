@@ -208,10 +208,29 @@ class SeveralPopsSimulationResult:
         sample_names = list(afss.keys())
         for sample_name in sample_names:
             afs = afss[sample_name]
-            value = numpy.sum(
+            num_markers = numpy.sum(afs.num_loci_for_each_allele_freq)
+            num_poly_markers = numpy.sum(
                 afs.num_loci_for_each_allele_freq[afs.allele_freqs > (1 - 0.95)]
-            ) / numpy.sum(afs.num_loci_for_each_allele_freq)
+            )
+            value = num_poly_markers / num_markers
             poly_095.append(value)
+        poly_095 = pandas.Series(poly_095, index=sample_names)
+        return poly_095
+
+    def calculate_num_poly095_per_sample(
+        self, sampling_times=None, pop_names=None, samples=None
+    ):
+        afss = self.calculate_allele_frequency_spectrum(
+            sampling_times=sampling_times, pop_names=pop_names, samples=samples
+        )
+        poly_095 = []
+        sample_names = list(afss.keys())
+        for sample_name in sample_names:
+            afs = afss[sample_name]
+            num_poly_markers = numpy.sum(
+                afs.num_loci_for_each_allele_freq[afs.allele_freqs > (1 - 0.95)]
+            )
+            poly_095.append(num_poly_markers)
         poly_095 = pandas.Series(poly_095, index=sample_names)
         return poly_095
 
