@@ -70,31 +70,36 @@ class MutationDriftApp(widget.VBox):
             [
                 widget.Label(""),
                 widget.Label("Nucleotide diversity (π):"),
+                widget.Label("Num. markers/kb:"),
+                widget.Label("Num. polymorphic markers (0.95)/kb:"),
                 widget.Label("% polymorphic markers (0.95):"),
-                widget.Label("Num. polymorphic markers (0.95):"),
             ]
         )
         self.diversities_res = widget.FloatText(disabled=True)
+        self.num_markers_res = widget.FloatText(disabled=True)
         self.poly095_res = widget.FloatText(disabled=True)
-        self.num_poly095_res = widget.IntText(disabled=True)
+        self.num_poly095_res = widget.FloatText(disabled=True)
         pop_col = widget.VBox(
             [
                 widget.Label("Pop."),
+                self.num_markers_res,
                 self.diversities_res,
-                self.poly095_res,
                 self.num_poly095_res,
+                self.poly095_res,
             ]
         )
 
         self.ref_diversities_res = widget.FloatText(disabled=True)
+        self.ref_num_markers_res = widget.FloatText(disabled=True)
         self.ref_poly095_res = widget.FloatText(disabled=True)
-        self.ref_num_poly095_res = widget.IntText(disabled=True)
+        self.ref_num_poly095_res = widget.FloatText(disabled=True)
         ref_pop_col = widget.VBox(
             [
                 widget.Label("Ref. pop."),
+                self.ref_num_markers_res,
                 self.ref_diversities_res,
-                self.ref_poly095_res,
                 self.ref_num_poly095_res,
+                self.ref_poly095_res,
             ]
         )
         grid_box = widget.HBox([label_col, pop_col, ref_pop_col])
@@ -131,24 +136,28 @@ class MutationDriftApp(widget.VBox):
         self.diversities_res.value = (
             sim_res.calculate_nucleotide_diversities_per_sample(sampling_times=[0])[0]
         )
-        self.poly095_res.value = sim_res.calculate_poly095_per_sample(
+        poly_res = sim_res.calculate_poly095_and_num_markers_per_sample(
             sampling_times=[0]
-        )[0]
-        self.num_poly095_res.value = sim_res.calculate_num_poly095_per_sample(
-            sampling_times=[0]
-        )[0]
+        )
+        self.poly095_res.value = poly_res["rate_poly_markers"][0] * 100
+        self.num_poly095_res.value = (
+            poly_res["num_poly_markers"][0] / self.seq_length_in_bp * 1000
+        )
+        self.num_markers_res = poly_res["num_markers"][0] / self.seq_length_in_bp * 1000
 
         self.ref_diversities_res.value = (
             sim_ref_res.calculate_nucleotide_diversities_per_sample(sampling_times=[0])[
                 0
             ]
         )
-        self.ref_poly095_res.value = sim_ref_res.calculate_poly095_per_sample(
+        poly_res = sim_ref_res.calculate_poly095_and_num_markers_per_sample(
             sampling_times=[0]
-        )[0]
-        self.ref_num_poly095_res.value = sim_ref_res.calculate_num_poly095_per_sample(
-            sampling_times=[0]
-        )[0]
+        )
+        self.ref_poly095_res.value = poly_res["rate_poly_markers"][0] * 100
+        self.ref_num_poly095_res.value = (
+            poly_res["num_poly_markers"][0] / self.seq_length_in_bp * 1000
+        )
+        self.num_markers_res = poly_res["num_markers"][0] / self.seq_length_in_bp * 1000
 
         fig, axess = plt.subplots(nrows=2, figsize=(8, 8))
 

@@ -201,38 +201,36 @@ class SeveralPopsSimulationResult:
     def calculate_poly095_per_sample(
         self, sampling_times=None, pop_names=None, samples=None
     ):
-        afss = self.calculate_allele_frequency_spectrum(
+        return self.calculate_poly095_and_num_markers_per_sample(
             sampling_times=sampling_times, pop_names=pop_names, samples=samples
-        )
-        poly_095 = []
-        sample_names = list(afss.keys())
-        for sample_name in sample_names:
-            afs = afss[sample_name]
-            num_markers = numpy.sum(afs.num_loci_for_each_allele_freq)
-            num_poly_markers = numpy.sum(
-                afs.num_loci_for_each_allele_freq[afs.allele_freqs > (1 - 0.95)]
-            )
-            value = num_poly_markers / num_markers
-            poly_095.append(value)
-        poly_095 = pandas.Series(poly_095, index=sample_names)
-        return poly_095
+        )["rate_poly_markers"]
 
-    def calculate_num_poly095_per_sample(
+    def calculate_poly095_and_num_markers_per_sample(
         self, sampling_times=None, pop_names=None, samples=None
     ):
         afss = self.calculate_allele_frequency_spectrum(
             sampling_times=sampling_times, pop_names=pop_names, samples=samples
         )
         poly_095 = []
+        num_poly_markers = []
+        num_markers = []
         sample_names = list(afss.keys())
         for sample_name in sample_names:
             afs = afss[sample_name]
-            num_poly_markers = numpy.sum(
-                afs.num_loci_for_each_allele_freq[afs.allele_freqs > (1 - 0.95)]
+            num_markers.append(numpy.sum(afs.num_loci_for_each_allele_freq))
+            num_poly_markers.append(
+                numpy.sum(
+                    afs.num_loci_for_each_allele_freq[afs.allele_freqs > (1 - 0.95)]
+                )
             )
-            poly_095.append(num_poly_markers)
-        poly_095 = pandas.Series(poly_095, index=sample_names)
-        return poly_095
+        num_poly_markers = pandas.Series(num_poly_markers, index=sample_names)
+        num_markers = pandas.Series(num_markers, index=sample_names)
+        poly_095 = num_poly_markers / num_markers
+        return {
+            "num_poly_markers": num_poly_markers,
+            "rate_poly_markers": poly_095,
+            "num_markers": num_markers,
+        }
 
     def _generate_combination_idxs(self, items):
         num_pops = len(items)
