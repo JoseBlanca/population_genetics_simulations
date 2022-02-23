@@ -378,36 +378,42 @@ class GenotypicFreqsLogger:
         return dframes
 
 
-def plot_freqs(plot_path, allelic_freqs_logger, genotypic_freqs_logger, pop_id):
-    figure, axess = plt.subplots(nrows=2, sharex=True)
+def plot_freqs(plot_path, allelic_freqs_logger, pop_id, genotypic_freqs_logger=None):
+    if genotypic_freqs_logger:
+        figure, axess = plt.subplots(nrows=2, sharex=True)
+    else:
+        figure, axes = plt.subplots()
+        axess = [axes]
+
     allelic_freq = allelic_freqs_logger.values_per_generation[pop_id]
 
     allelic_freq_axes = axess[0]
     allelic_freq_axes.plot(allelic_freq.index, allelic_freq)
     allelic_freq_axes.set_ylabel("allelic freq A")
 
-    genotypic_freq_axes = axess[1]
-    genotypic_freqs = genotypic_freqs_logger.values_per_generation
-    for genotypic_freq_name, this_genotypic_freqs in genotypic_freqs.items():
-        genotypic_freq_axes.plot(
-            this_genotypic_freqs[pop_id].index,
-            this_genotypic_freqs[pop_id],
-            label=genotypic_freq_name,
-        )
-    genotypic_freq_axes.legend()
+    if genotypic_freqs_logger:
+        genotypic_freq_axes = axess[1]
+        genotypic_freqs = genotypic_freqs_logger.values_per_generation
+        for genotypic_freq_name, this_genotypic_freqs in genotypic_freqs.items():
+            genotypic_freq_axes.plot(
+                this_genotypic_freqs[pop_id].index,
+                this_genotypic_freqs[pop_id],
+                label=genotypic_freq_name,
+            )
+        genotypic_freq_axes.legend()
 
     figure.savefig(plot_path)
 
 
 if __name__ == "__main__":
-
+    size = 2000
     pop1 = Population(
         id="pop1",
-        size=1000,
+        size=size,
         # size=INF,
         genotypic_freqs=GenotypicFreqs(0, 0, 1),
         # fitness=Fitness(w11=0.1, w12=0.1, w22=1),
-        mut_rates=MutRates(a2A=0.001, A2a=0),
+        mut_rates=MutRates(a2A=1 / (size * 10), A2a=0),
         # selfing_rate=0,
     )
     pop2 = Population(
@@ -457,16 +463,16 @@ if __name__ == "__main__":
     genotypic_freqs_logger = GenotypicFreqsLogger()
     simulate(
         pops=[pop1, pop2],
-        num_generations=20,
+        num_generations=200,
         # demographic_events=demographic_events,
         # random_seed=42,
         loggers=[allelic_freqs_logger, pop_size_logger, genotypic_freqs_logger],
     )
 
     plot_freqs(
-        "/home/jose/tmp/temp_pop1.png",
+        "/home/jose/tmp/temp_pop1.svg",
         allelic_freqs_logger,
-        genotypic_freqs_logger,
-        "pop1",
+        # genotypic_freqs_logger,
+        pop_id="pop1",
     )
     # plot_freqs("../temp_pop2.png", allelic_freqs_logger, genotypic_freqs_logger, "pop2")
