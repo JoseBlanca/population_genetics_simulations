@@ -11,6 +11,8 @@ Practices implemented:
  - [Three drifting populations](src/drifting_pops_practice.ipynb)
  - [Bottleneck](src/bottleneck_practice.ipynb)
  - [Founder effect](src/founder_effect_practice.ipynb)
+ - [Mutation-drift](src/mutation_drift_sfs_practice.ipynb)
+ - [Selection](src/selection_practice.ipynb)
  
  ## How to run the code
 

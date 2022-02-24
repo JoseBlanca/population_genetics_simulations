@@ -36,7 +36,7 @@ class GenotypicFreqs:
         self.Aa = freq_Aa
         expected_freq_aa = 1 - freq_AA - freq_Aa
         if freq_aa is not None:
-            if not math.isclose(expected_freq_aa, freq_aa, rel_tol=0.001):
+            if not math.isclose(expected_freq_aa, freq_aa, abs_tol=0.01):
                 raise ValueError(
                     f"freq_aa ({freq_aa}) should be 1 - freq_AA - freq_Aa ({expected_freq_aa})"
                 )
