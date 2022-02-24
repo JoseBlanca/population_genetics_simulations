@@ -21,7 +21,7 @@ class MutationDriftApp(widget.VBox):
         max_pop_size=500_000,
         default_pop_size=100_000,
         ref_pop_size=100_000,
-        num_indis_to_sample_per_pop=50,
+        num_indis_to_sample_per_pop=100,
         seq_length_in_bp=500_000,
     ):
 
@@ -129,6 +129,7 @@ class MutationDriftApp(widget.VBox):
         sfs = genotypes.folded_sfs
         if normalized:
             sfs = sfs / sfs.sum()
+        sfs = sfs[sfs.index > 0.05]
         return sfs
 
     def generate_simulation_plots(self, sim_res, sim_ref_res):
@@ -159,7 +160,7 @@ class MutationDriftApp(widget.VBox):
         )
         self.num_markers_res = poly_res["num_markers"][0] / self.seq_length_in_bp * 1000
 
-        fig, axess = plt.subplots(nrows=2, figsize=(8, 8))
+        fig, axess = plt.subplots(nrows=2, figsize=(8, 10))
 
         for idx, normalized in enumerate([False, True]):
             sfs = self._get_sfs(sim_res, normalized=normalized)
@@ -167,9 +168,13 @@ class MutationDriftApp(widget.VBox):
             axes = axess[idx]
             if normalized:
                 title = "Allele Frequency Spectrum (normalized)"
+                y_label = "Rate"
             else:
                 title = "Allele Frequency Spectrum"
+                y_label = "Number of markers"
             axes.set_title(title)
+            axes.set_xlabel("Minor Alleles Freq.")
+            axes.set_ylabel(y_label)
             axes.plot(sfs.index, sfs.values, label="pop")
             axes.plot(ref_sfs.index, ref_sfs.values, label="reference")
             axes.legend()
