@@ -340,6 +340,13 @@ class PopSizeLogger(_PerPopLogger):
         return size
 
 
+class ExpHetLogger(_PerPopLogger):
+    def _calc_value_for_pop(self, pop):
+        freq_A = calc_allelic_freq(pop.genotypic_freqs)
+        exp_het = 2 * freq_A * (1 - freq_A)
+        return exp_het
+
+
 GENOTYPIC_FREQS_NAMES = ["freqs_AA", "freqs_Aa", "freqs_aa"]
 
 
@@ -461,12 +468,19 @@ if __name__ == "__main__":
     allelic_freqs_logger = AllelicFreqLogger()
     pop_size_logger = PopSizeLogger()
     genotypic_freqs_logger = GenotypicFreqsLogger()
+    exp_het_logger = ExpHetLogger()
+    loggers = [
+        allelic_freqs_logger,
+        pop_size_logger,
+        genotypic_freqs_logger,
+        exp_het_logger,
+    ]
     simulate(
         pops=[pop1, pop2],
         num_generations=200,
         # demographic_events=demographic_events,
         # random_seed=42,
-        loggers=[allelic_freqs_logger, pop_size_logger, genotypic_freqs_logger],
+        loggers=loggers,
     )
 
     plot_freqs(

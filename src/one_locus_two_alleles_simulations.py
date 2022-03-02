@@ -6,6 +6,7 @@ from one_locus_two_alleles_simulator import (
     Population,
     AllelicFreqLogger,
     GenotypicFreqsLogger,
+    ExpHetLogger,
     simulate,
 )
 import plot
@@ -58,12 +59,13 @@ def simulate_one_locus_two_alleles_one_pop(
 
         allelic_freqs_logger = AllelicFreqLogger()
         genotypic_freqs_logger = GenotypicFreqsLogger()
+        exp_het_logger = ExpHetLogger()
         simulate(
             pops=[pop1],
             num_generations=num_generations,
             demographic_events=None,
             random_seed=None,
-            loggers=[allelic_freqs_logger, genotypic_freqs_logger],
+            loggers=[allelic_freqs_logger, genotypic_freqs_logger, exp_het_logger],
         )
 
         plot.plot_allelic_freq_one_pop(
@@ -78,6 +80,11 @@ def simulate_one_locus_two_alleles_one_pop(
             genotypic_freqs_logger, genotypic_freqs_axes, pop1
         )
         genotypic_freqs_axes.set_xlabel("Num. generations")
+    return {
+        "genotypic_freqs_logger": genotypic_freqs_logger,
+        "allelic_freqs_logger": allelic_freqs_logger,
+        "exp_het_logger": exp_het_logger,
+    }
 
 
 if __name__ == "__main__":

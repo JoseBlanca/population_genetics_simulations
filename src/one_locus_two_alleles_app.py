@@ -1,3 +1,4 @@
+from faulthandler import disable
 import math
 
 import ipywidgets as widget
@@ -118,7 +119,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             if self.clear_output:
                 clear_output(wait=True)
             kwargs = self._get_ui_simulation_parameters()
-            self.result = self.generate_simulation_plot(**kwargs)
+            self.result = self.simulate(**kwargs)
             widget.interaction.show_inline_matplotlib_plots()
 
     def setup_ui(self, children_widgets):
@@ -258,6 +259,20 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
                 accordions.append(accordion)
             accordion_box = widget.VBox(accordions)
 
+        self.exp_het_text = widget.FloatText(disable=True)
+        if self.allow_several_populations:
+            text = "Mean final Exp. Het."
+        else:
+            text = "Final Exp. Het."
+        exp_het_box = widget.HBox([widget.Label(text), self.exp_het_text])
+        self.freq_A_text = widget.FloatText(disable=True)
+        if self.allow_several_populations:
+            text = "Mean final freq. A"
+        else:
+            text = "Final freq. A"
+        freq_A_box = widget.HBox([widget.Label(text), self.freq_A_text])
+        result_box = widget.HBox([exp_het_box, freq_A_box])
+
         children_widgets.append(freqs_box)
         children_widgets.append(pop_size_box)
         children_widgets.append(num_generations_box)
@@ -265,6 +280,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             children_widgets.append(num_populations_box)
         if accordion_tabs:
             children_widgets.append(accordion_box)
+        children_widgets.append(result_box)
 
     def update_freq_sliders(self, change):
         if not self.assume_hw:
@@ -371,7 +387,7 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
 
         return sim_kwargs
 
-    def generate_simulation_plot(self, **kwargs):
+    def simulate(self, **kwargs):
         _, axess = self._get_matplotlib_axess()
 
         sim_kwargs = {}
@@ -390,7 +406,13 @@ class OneLociTwoAllelesSimulationApp(widget.VBox):
             },
         )
 
-        simulate_one_locus_two_alleles_one_pop(**sim_kwargs)
+        res = simulate_one_locus_two_alleles_one_pop(**sim_kwargs)
+        mean_exp_het = res["exp_het_logger"].values_per_generation.iloc[-1, :].mean()
+        self.exp_het_text.value = mean_exp_het
+        mean_freq_A = (
+            res["allelic_freqs_logger"].values_per_generation.iloc[-1, :].mean()
+        )
+        self.freq_A_text.value = mean_freq_A
         self._set_xy_plot_lims(axess[0], axess[1], sim_kwargs["num_generations"])
 
 
