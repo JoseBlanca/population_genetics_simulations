@@ -1,4 +1,3 @@
-from operator import ge
 from typing import Callable, Union, Iterable
 import random
 import math
@@ -308,6 +307,15 @@ class _PerPopLogger:
         self._values_per_generation = None
         self._generations = array("L")
 
+    @classmethod
+    def from_loggers(cls, loggers):
+        logger = cls()
+        logger._values_per_generation = pandas.concat(
+            [logger.values_per_generation for logger in loggers], axis=1
+        )
+        logger._generations = logger._values_per_generation.index
+        return logger
+
     def __call__(self, pops: Iterable[Population], num_generation: int):
         self._generations.append(num_generation)
 
@@ -354,6 +362,23 @@ class GenotypicFreqsLogger:
     def __init__(self):
         self._values_per_generation = None
         self._generations = array("L")
+
+    @classmethod
+    def from_loggers(cls, loggers):
+        logger = cls()
+        values = {}
+        for genotypic_freq_name in loggers[0].values_per_generation.keys():
+            values[genotypic_freq_name] = pandas.concat(
+                [
+                    logger.values_per_generation[genotypic_freq_name]
+                    for logger in loggers
+                ],
+                axis=1,
+            )
+
+        logger._values_per_generation = values
+        logger._generations = values[genotypic_freq_name].index
+        return logger
 
     def __call__(self, pops: Iterable[Population], num_generation: int):
         self._generations.append(num_generation)

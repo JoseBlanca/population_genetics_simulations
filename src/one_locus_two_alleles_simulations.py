@@ -44,12 +44,17 @@ def simulate_one_locus_two_alleles_one_pop(
     else:
         mut_rates = MutRates(A2a, a2A)
 
-    for i in range(num_populations):
+    loggers = {
+        "genotypic_freqs_logger": [],
+        "allelic_freqs_logger": [],
+        "exp_het_logger": [],
+    }
+    for idx in range(num_populations):
         genotypic_freqs = GenotypicFreqs(
             freq_AA=freq_AA, freq_Aa=freq_Aa, freq_aa=freq_aa
         )
-        pop1 = Population(
-            id="pop1",
+        pop = Population(
+            id=f"pop{idx}",
             size=pop_size,
             genotypic_freqs=genotypic_freqs,
             fitness=fitness,
@@ -61,30 +66,33 @@ def simulate_one_locus_two_alleles_one_pop(
         genotypic_freqs_logger = GenotypicFreqsLogger()
         exp_het_logger = ExpHetLogger()
         simulate(
-            pops=[pop1],
+            pops=[pop],
             num_generations=num_generations,
             demographic_events=None,
             random_seed=None,
             loggers=[allelic_freqs_logger, genotypic_freqs_logger, exp_het_logger],
         )
+        loggers["genotypic_freqs_logger"].append(genotypic_freqs_logger)
+        loggers["allelic_freqs_logger"].append(allelic_freqs_logger)
+        loggers["exp_het_logger"].append(exp_het_logger)
 
         plot.plot_allelic_freq_one_pop(
             allelic_freqs_logger,
             allelic_freq_axes,
-            pop1,
+            pop,
             take_color_from_color_wheel=True,
         )
+    loggers = {
+        key: logger_list[0].__class__.from_loggers(logger_list)
+        for key, logger_list in loggers.items()
+    }
 
     if genotypic_freqs_axes is not None:
         plot.plot_genotypic_freqs_one_pop(
-            genotypic_freqs_logger, genotypic_freqs_axes, pop1
+            genotypic_freqs_logger, genotypic_freqs_axes, pop
         )
         genotypic_freqs_axes.set_xlabel("Num. generations")
-    return {
-        "genotypic_freqs_logger": genotypic_freqs_logger,
-        "allelic_freqs_logger": allelic_freqs_logger,
-        "exp_het_logger": exp_het_logger,
-    }
+    return loggers
 
 
 if __name__ == "__main__":
@@ -94,8 +102,10 @@ if __name__ == "__main__":
 
     simulate_one_locus_two_alleles_one_pop(
         allelic_freq_axes=axess[0],
-        genotypic_freqs_axes=axess[1],
+        # genotypic_freqs_axes=axess[1],
+        genotypic_freqs_axes=None,
         freq_AA=1,
         freq_Aa=0,
         freq_aa=0,
+        num_populations=3,
     )
