@@ -1,5 +1,4 @@
 import numpy
-import pandas
 
 from matplotlib import pyplot as plt
 import seaborn
@@ -161,7 +160,13 @@ class BottleneckApp(widget.VBox):
         )
         axes = axess[4]
         axes.set_title(sampling_time_str)
-        pca.plot_pca_result(pca_res, axes, classification=genotypes.classification)
+        pca.plot_pca_result(
+            pca_res,
+            axes,
+            classification=genotypes.classification,
+            alpha=0.5,
+            marker_size=50,
+        )
 
     def update(self, *_, **__):
 
