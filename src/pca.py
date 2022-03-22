@@ -57,10 +57,22 @@ def do_pca(
 
 
 def plot_pca_result(
-    pca_result, axes, axis1="princomp_1", axis2="princomp_2", classification=None
+    pca_result,
+    axes,
+    axis1="princomp_1",
+    axis2="princomp_2",
+    classification=None,
+    alpha=1,
+    marker_size=20,
 ):
     seaborn.scatterplot(
-        data=pca_result["projections"], x=axis1, y=axis2, hue=classification, ax=axes
+        data=pca_result["projections"],
+        x=axis1,
+        y=axis2,
+        hue=classification,
+        ax=axes,
+        alpha=alpha,
+        s=marker_size,
     )
     explained_variances = pca_result["explained_variances"]
     var1 = explained_variances[axis1]
