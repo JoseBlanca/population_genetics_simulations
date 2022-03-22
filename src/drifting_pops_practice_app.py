@@ -73,7 +73,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
         )
         self.pop3_size_slider = widget.IntSlider(
             min=self.min_pop_size,
-            max=int(self.max_pop_size / 5),
+            max=self.max_pop_size,
             value=self.default_pop_size,
             description="Size pop 3",
         )
@@ -140,7 +140,7 @@ class ThreePopDriftSimulationApp(widget.VBox):
         nucleotide_diversities = pandas.DataFrame(nucleotide_diversities).T
         nucleotide_diversities.index = -numpy.array(nucleotide_diversities.index)
         fig, axess = plt.subplots(
-            nrows=3 + self.num_time_intervals_to_sample, figsize=(8, 35)
+            nrows=3 + self.num_time_intervals_to_sample, figsize=(8, 40)
         )
         axes = axess[0]
         demesdraw.tubes(sim_res.demography.to_demes(), ax=axes)
