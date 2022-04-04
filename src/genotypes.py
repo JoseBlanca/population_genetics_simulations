@@ -83,7 +83,8 @@ class Genotypes:
     @property
     def folded_sfs(self):
         sfs = allel.sfs_folded(self.genotypes.count_alleles())
-        minor_allele_count = numpy.arange(stop=sfs.size)
+        # do not use a keyword argument with arange because it fails in some versions
+        minor_allele_count = numpy.arange(sfs.size)
         freqs = minor_allele_count / (numpy.max(minor_allele_count) * 2)
         sfs = pandas.Series(sfs, index=freqs)
         return sfs
