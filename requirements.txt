@@ -1,3 +1,4 @@
+# sudo apt install libgsl-dev
 pandas
 matplotlib
 jupyterlab
