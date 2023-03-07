@@ -28,6 +28,7 @@ def simulate(
     )
 
     sampling_times = [
+        bottleneck_start_time - 10,
         bottleneck_start_time + 1,
         bottleneck_start_time - 1,
         int((bottleneck_end_time + bottleneck_start_time) / 2),
