@@ -1,4 +1,5 @@
 # sudo apt install libgsl-dev
+pyarrow
 pandas
 matplotlib
 jupyterlab
