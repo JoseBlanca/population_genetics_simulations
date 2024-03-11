@@ -31,7 +31,6 @@ class FounderEffectApp(widget.VBox):
         num_indis_to_sample_per_pop=50,
         seq_length_in_bp=500_000,
     ):
-
         if min_founding_time < max_bottleneck_time:
             raise ValueError(
                 "min_founding_time should be lower than max_bottleneck_time"
@@ -136,7 +135,6 @@ class FounderEffectApp(widget.VBox):
         return kwargs
 
     def generate_simulation_plots(self, sim_res, samples):
-
         nucleotide_diversities = sim_res.calculate_nucleotide_diversities_per_sample(
             sampling_times=0
         )
@@ -148,13 +146,18 @@ class FounderEffectApp(widget.VBox):
         demesdraw.tubes(sim_res.demography.to_demes(), ax=axes)
 
         axes = axess[1]
+        pops = [pop[0] for pop in nucleotide_diversities.index.to_numpy()]
+        diversities = nucleotide_diversities.values
         seaborn.barplot(
-            x=nucleotide_diversities.index, y=nucleotide_diversities.values, ax=axes
+            x=pops,
+            y=diversities,
+            ax=axes,
         )
         axes.set_ylabel("Nucleotide diversity")
 
         axes = axess[2]
-        seaborn.barplot(x=poly_095.index, y=poly_095.values * 100, ax=axes)
+        pops = [pop[0] for pop in poly_095.index]
+        seaborn.barplot(x=pops, y=poly_095.values * 100, ax=axes)
         axes.set_ylabel("% polymorphic markers (95%)")
 
         samples = list(samples.keys())
@@ -170,7 +173,6 @@ class FounderEffectApp(widget.VBox):
         pca.plot_pca_result(pca_res, axes, classification=genotypes.classification)
 
     def update(self, *_, **__):
-
         widget.interaction.show_inline_matplotlib_plots()
         with self.output:
             clear_output(wait=True)
